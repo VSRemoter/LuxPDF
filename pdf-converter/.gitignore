@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-=======
->>>>>>> 2cc43b7a228235a5d5965e2a466e362a7c5d5965
 # dependencies
 /node_modules
 /.pnp
@@ -24,12 +21,3 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-<<<<<<< HEAD
-=======
-
-# IDE specific files
-.idea
-.vscode
-*.swp
-*.swo 
->>>>>>> 2cc43b7a228235a5d5965e2a466e362a7c5d5965

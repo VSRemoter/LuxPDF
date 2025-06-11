@@ -1,0 +1,4 @@
+[build]
+  base = "pdf-converter"
+  publish = "build"
+  command = "npm run build" 
