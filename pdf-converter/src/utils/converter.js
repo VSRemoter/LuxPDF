@@ -195,155 +195,98 @@ export const mergePDFs = async (pdfFiles) => {
   try {
     const mergedPdf = await PDFDocument.create();
     
-    for (let i = 0; i < pdfFiles.length; i++) {
-      const file = pdfFiles[i];
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await PDFDocument.load(arrayBuffer);
+    for (const pdfFile of pdfFiles) {
+      const pdfBytes = await pdfFile.arrayBuffer();
+      const pdf = await PDFDocument.load(pdfBytes);
       const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-      
-      copiedPages.forEach((page) => {
-        mergedPdf.addPage(page);
-      });
+      copiedPages.forEach((page) => mergedPdf.addPage(page));
     }
-
-    const pdfBytes = await mergedPdf.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     
+    const mergedPdfFile = await mergedPdf.save();
     return {
       success: true,
-      data: blob,
-      fileName: `merged-pdf-${new Date().toISOString().slice(0, 10)}.pdf`
+      data: new Blob([mergedPdfFile], { type: 'application/pdf' }),
+      fileName: 'merged.pdf'
     };
   } catch (error) {
-    console.error('Error merging PDFs:', error);
     return {
       success: false,
-      error: 'Failed to merge PDFs. Please try again.'
+      error: error.message
     };
   }
 };
 
 export const splitPDF = async (pdfFile, startPage, endPage) => {
   try {
-    const arrayBuffer = await pdfFile.arrayBuffer();
-    const pdf = await PDFDocument.load(arrayBuffer);
-    const totalPages = pdf.getPageCount();
-
-    // Validate page range
-    if (startPage < 1) {
-      throw new Error(`Start page must be at least 1. You entered: ${startPage}`);
-    }
-    if (endPage > totalPages) {
-      throw new Error(`End page cannot be greater than the total number of pages (${totalPages}). You entered: ${endPage}`);
-    }
-    if (startPage > endPage) {
-      throw new Error(`Start page (${startPage}) cannot be greater than end page (${endPage})`);
-    }
-
-    // Create new PDF document
-    const newPDF = await PDFDocument.create();
-
-    // Copy pages (PDF-lib uses 0-based indexing)
+    const pdfBytes = await pdfFile.arrayBuffer();
+    const pdf = await PDFDocument.load(pdfBytes);
+    const newPdf = await PDFDocument.create();
+    
+    const pageIndices = [];
     for (let i = startPage - 1; i < endPage; i++) {
-      const [copiedPage] = await newPDF.copyPages(pdf, [i]);
-      newPDF.addPage(copiedPage);
+      pageIndices.push(i);
     }
-
-    // Generate PDF bytes
-    const pdfBytes = await newPDF.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     
+    const pages = await newPdf.copyPages(pdf, pageIndices);
+    pages.forEach(page => newPdf.addPage(page));
+    
+    const newPdfBytes = await newPdf.save();
     return {
       success: true,
-      data: blob,
-      fileName: `split_pages_${startPage}-${endPage}.pdf`
+      data: new Blob([newPdfBytes], { type: 'application/pdf' }),
+      fileName: `${pdfFile.name.replace('.pdf', '')}_pages_${startPage}-${endPage}.pdf`
     };
   } catch (error) {
-    console.error('Error splitting PDF:', error);
     return {
       success: false,
-      error: error.message || 'Failed to split PDF. Please try again.'
+      error: error.message
     };
   }
 };
 
-export const compressPDF = async (pdfFiles) => {
+export const compressPDF = async (pdfFile) => {
   try {
-    // Create a new ZIP file
-    const zip = new JSZip();
-    
-    // Process each PDF file
-    for (const pdfFile of pdfFiles) {
-      const arrayBuffer = await pdfFile.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
-      
-      // Create compression options
-      const compressOptions = {
-        useObjectStreams: true,
-        addDefaultPage: false,
-        objectsPerTick: 50,
-      };
-
-      // Apply compression
-      pdfDoc.setTitle('');
-      pdfDoc.setAuthor('');
-      pdfDoc.setSubject('');
-      pdfDoc.setKeywords([]);
-
-      // Generate compressed PDF
-      const compressedBytes = await pdfDoc.save(compressOptions);
-      const blob = new Blob([compressedBytes], { type: 'application/pdf' });
-      
-      // Add to ZIP with original filename
-      const fileName = `${pdfFile.name.replace('.pdf', '')}_compressed.pdf`;
-      zip.file(fileName, blob);
-    }
-    
-    // Generate ZIP file
-    const zipBlob = await zip.generateAsync({
-      type: 'blob',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 }
+    const pdfBytes = await pdfFile.arrayBuffer();
+    const pdf = await PDFDocument.load(pdfBytes);
+    const compressedPdfBytes = await pdf.save({
+      useObjectStreams: true,
+      addDefaultPage: false,
+      objectsPerTick: 50,
     });
     
     return {
       success: true,
-      data: zipBlob,
-      fileName: 'compressed_pdfs.zip'
+      data: new Blob([compressedPdfBytes], { type: 'application/pdf' }),
+      fileName: `${pdfFile.name.replace('.pdf', '')}_compressed.pdf`
     };
   } catch (error) {
-    console.error('PDF compression error:', error);
     return {
       success: false,
-      error: 'Error compressing PDFs'
+      error: error.message
     };
   }
 };
 
-export const rotatePDF = async (pdfFile, angle) => {
+export const rotatePDF = async (pdfFile, degrees) => {
   try {
-    const arrayBuffer = await pdfFile.arrayBuffer();
-    const pdfDoc = await PDFDocument.load(arrayBuffer);
+    const pdfBytes = await pdfFile.arrayBuffer();
+    const pdf = await PDFDocument.load(pdfBytes);
+    const pages = pdf.getPages();
     
-    // Rotate all pages by the specified angle
-    const pages = pdfDoc.getPages();
     pages.forEach(page => {
-      page.setRotation(degrees(angle));
+      page.setRotation(degrees);
     });
-
-    const rotatedBytes = await pdfDoc.save();
-    const blob = new Blob([rotatedBytes], { type: 'application/pdf' });
     
+    const rotatedPdfBytes = await pdf.save();
     return {
       success: true,
-      data: blob,
+      data: new Blob([rotatedPdfBytes], { type: 'application/pdf' }),
       fileName: `${pdfFile.name.replace('.pdf', '')}_rotated.pdf`
     };
   } catch (error) {
-    console.error('PDF rotation error:', error);
     return {
       success: false,
-      error: 'Error rotating PDF'
+      error: error.message
     };
   }
 };
@@ -613,5 +556,5 @@ export const convertTextToPdf = async (textFiles) => {
 const sanitizeFileName = (fileName) => {
   return fileName
     .replace(/[/\\?%*:|"<>]/g, '-') // Replace invalid characters with hyphen
-    .replace(/[\x00-\x1F\x7F]/g, ''); // Remove control characters safely
+    .replace(/[\x00-\x1F\x7F]/g, '-'); // Replace control characters with hyphen
 }; 

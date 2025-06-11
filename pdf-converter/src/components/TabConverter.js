@@ -36,7 +36,7 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: ${props => props.theme.colors.primary};
-    box-shadow: LuxPDF0 2px rgba(255, 191, 96, 0.2);
+    box-shadow: 0 0 2px rgba(255, 191, 96, 0.2);
   }
 `;
 
@@ -558,7 +558,8 @@ const TabConverter = () => {
   const fileInputRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  const tabs = [
+  // Memoize tabs to prevent recreation on every render
+  const tabs = React.useMemo(() => [
     {
       id: 'merge-pdf',
       label: 'Merge PDFs',
@@ -595,14 +596,18 @@ const TabConverter = () => {
       multiple: false,
       acceptedFormats: ['.pdf']
     }
-  ];
+  ], []);
+
+  // Memoize getActionText to prevent recreation on every render
+  const getActionText = React.useCallback((tabId) => {
+    const tab = tabs.find(t => t.id === tabId);
+    return tab ? tab.label : '';
+  }, [tabs]);
 
   useEffect(() => {
-    // Update the document title based on active tab
     document.title = `LuxPDF - ${getActionText(activeTabId)}`;
-    // Initialize filtered tabs
     setFilteredTabs(tabs);
-  }, [activeTabId]);
+  }, [activeTabId, getActionText, tabs]);
 
   // Auto-focus the search input when component mounts
   useEffect(() => {
@@ -1313,40 +1318,6 @@ const TabConverter = () => {
       setErrorMessage(error.message || 'Error during conversion. Please try again.');
     } finally {
       setIsConverting(false);
-    }
-  };
-  
-  const getActionText = (tab) => {
-    const fileCount = files.length;
-    const fileText = fileCount > 1 ? `${fileCount} files` : 'file';
-    
-    switch (tab.id) {
-      case 'pdf-to-jpg':
-      case 'pdf-to-png':
-      case 'pdf-to-webp':
-        const format = tab.id.split('-').pop().toUpperCase();
-        return `Convert ${fileText} to ${format}`;
-      case 'jpg-to-pdf':
-      case 'png-to-pdf':
-      case 'webp-to-pdf':
-        if (individualConversion && fileCount > 1) {
-          return `created ${fileCount} individual PDFs`;
-        }
-        return `Convert ${fileText} to PDF`;
-      case 'merge-pdf':
-        return 'Merge PDFs';
-      case 'split-pdf':
-        return `Split ${fileText}`;
-      case 'compress-pdf':
-        return `Compress ${fileText}`;
-      case 'rotate-pdf':
-        return `Rotate PDF`;
-      case 'text-to-pdf':
-        return `convert ${fileText} to PDF`;
-      case 'pdf-to-text':
-        return `convert ${fileText} to TXT`;
-      default:
-        return 'convert';
     }
   };
   
