@@ -537,21 +537,72 @@ const DeleteButton = styled.button`
 `;
 
 const TabConverter = () => {
-  const [activeTab, setActiveTab] = useState('merge');
+  const [activeTabId, setActiveTabId] = useState('merge-pdf');
   const [files, setFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [isComplete, setIsComplete] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredTabs, setFilteredTabs] = useState([]);
+  const [draggedFile, setDraggedFile] = useState(null);
+  const [dragOverFile, setDragOverFile] = useState(null);
+  const [startPage, setStartPage] = useState('');
+  const [endPage, setEndPage] = useState('');
+  const [totalPages, setTotalPages] = useState(null);
+  const [splitError, setSplitError] = useState('');
+  const [rotationAngle, setRotationAngle] = useState(90);
+  const [individualConversion, setIndividualConversion] = useState(false);
+  
   const fileInputRef = useRef(null);
-  const [conversionProgress, setConversionProgress] = useState(0);
-  
-  // Remove unused state
-  const fileItemRefs = useRef({});
-  
+  const searchInputRef = useRef(null);
+
+  const tabs = [
+    {
+      id: 'merge-pdf',
+      label: 'Merge PDFs',
+      icon: <FaObjectGroup />,
+      description: 'Combine multiple PDFs into one',
+      accept: '.pdf',
+      multiple: true,
+      acceptedFormats: ['.pdf']
+    },
+    {
+      id: 'split-pdf',
+      label: 'Split PDF',
+      icon: <FaCut />,
+      description: 'Split PDF into multiple files',
+      accept: '.pdf',
+      multiple: false,
+      acceptedFormats: ['.pdf']
+    },
+    {
+      id: 'compress-pdf',
+      label: 'Compress PDF',
+      icon: <FaCompress />,
+      description: 'Reduce PDF file size',
+      accept: '.pdf',
+      multiple: true,
+      acceptedFormats: ['.pdf']
+    },
+    {
+      id: 'rotate-pdf',
+      label: 'Rotate PDF',
+      icon: <FaArrowUp />,
+      description: 'Rotate PDF pages',
+      accept: '.pdf',
+      multiple: false,
+      acceptedFormats: ['.pdf']
+    }
+  ];
+
   useEffect(() => {
     // Update the document title based on active tab
-    document.title = `LuxPDF - ${getActionText(activeTab)}`;
-  }, [activeTab]);
+    document.title = `LuxPDF - ${getActionText(activeTabId)}`;
+    // Initialize filtered tabs
+    setFilteredTabs(tabs);
+  }, [activeTabId]);
 
   // Auto-focus the search input when component mounts
   useEffect(() => {
@@ -569,7 +620,8 @@ const TabConverter = () => {
     
     const query = searchQuery.toLowerCase();
     const filtered = tabs.filter(tab => 
-      tab.label.toLowerCase().includes(query)
+      tab.label.toLowerCase().includes(query) ||
+      tab.description.toLowerCase().includes(query)
     );
     
     setFilteredTabs(filtered);
@@ -584,7 +636,14 @@ const TabConverter = () => {
   const activeTabData = tabs.find(tab => tab.id === activeTabId);
   
   const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
+    const query = e.target.value.toLowerCase();
+    setSearchQuery(query);
+    setFilteredTabs(
+      tabs.filter(tab =>
+        tab.label.toLowerCase().includes(query) ||
+        tab.description.toLowerCase().includes(query)
+      )
+    );
   };
   
   const handleTabChange = (tabId) => {
@@ -597,7 +656,7 @@ const TabConverter = () => {
     const newFiles = Array.from(event.target.files);
     setFiles(newFiles);
     
-    if (activeTabId === 'splitPdf' && newFiles.length === 1) {
+    if (activeTabId === 'split-pdf' && newFiles.length === 1) {
       try {
         const arrayBuffer = await newFiles[0].arrayBuffer();
         const pdf = await PDFDocument.load(arrayBuffer);
@@ -1314,66 +1373,71 @@ const TabConverter = () => {
         <SearchIcon>
           <FaSearch />
         </SearchIcon>
-        <SearchInput 
-          type="text" 
-          placeholder="Search conversions..." 
-          value={searchQuery}
-          onChange={handleSearchChange}
+        <SearchInput
           ref={searchInputRef}
-          autoFocus
+          type="text"
+          placeholder="Search conversions..."
+          value={searchQuery}
+          onChange={(e) => {
+            const query = e.target.value.toLowerCase();
+            setSearchQuery(query);
+            setFilteredTabs(
+              tabs.filter(tab =>
+                tab.label.toLowerCase().includes(query) ||
+                tab.description.toLowerCase().includes(query)
+              )
+            );
+          }}
         />
       </SearchContainer>
-      
+
       <TabsContainer>
         {filteredTabs.map(tab => (
-          <Tab 
+          <Tab
             key={tab.id}
             active={activeTabId === tab.id}
             onClick={() => handleTabChange(tab.id)}
           >
-            {tab.label}
+            {tab.icon} {tab.label}
           </Tab>
         ))}
       </TabsContainer>
-      
-      <FileInput 
-        type="file" 
-        id="file-upload" 
-        accept={activeTabData.accept}
-        onChange={handleFileChange}
-        multiple={activeTabData.multiple}
-      />
-      
-      <DropArea 
+
+      <DropArea
         isDragging={isDragging}
         onDragOver={handleAreaDragOver}
         onDragLeave={handleAreaDragLeave}
         onDrop={handleFilesDrop}
-        onClick={() => document.getElementById('file-upload').click()}
+        onClick={() => fileInputRef.current?.click()}
       >
+        <FileInput
+          id="file-upload"
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept={tabs.find(t => t.id === activeTabId)?.accept || ''}
+          multiple={tabs.find(t => t.id === activeTabId)?.multiple || false}
+        />
+        
         {files.length === 0 ? (
           <>
             <UploadIcon>
               <FaFileUpload />
             </UploadIcon>
-            <UploadText>
-              {activeTabData.multiple 
-                ? 'Click or drag files to upload' 
-                : 'Click or drag file to upload'}
-            </UploadText>
+            <UploadText>Drop your files here or click to browse</UploadText>
             <UploadSubtext>
-              {activeTabData.multiple 
-                ? `Supports multiple ${activeTabData.accept} files` 
-                : `Supports ${activeTabData.accept} files`}
+              Supported formats: {tabs.find(t => t.id === activeTabId)?.acceptedFormats.join(', ')}
             </UploadSubtext>
           </>
         ) : (
           <>
             <FileList>
               {files.map((file, index) => (
-                <FileItem 
+                <FileItem
                   key={`${file.name}-${index}`}
-                  draggable
+                  isDragging={draggedFile === file}
+                  className={dragOverFile === file ? 'dragging-over' : ''}
+                  draggable={isReorderable(activeTabId)}
                   onDragStart={() => setDraggedFile(file)}
                   onDragEnd={() => {
                     setDraggedFile(null);
@@ -1381,130 +1445,75 @@ const TabConverter = () => {
                   }}
                   onDragOver={(e) => handleDragOver(e, file)}
                   onDrop={(e) => handleDrop(e, file)}
-                  isDragging={file === draggedFile}
-                  className={file === dragOverFile ? 'dragging-over' : ''}
                 >
-                  <FileOrderNumber>{index + 1}</FileOrderNumber>
-                    <DragHandle>
-                      <FaGripVertical />
-                    </DragHandle>
-                  <FileDetails>
-                    <FileName>{file.name}</FileName>
-                    <FileSize>{formatFileSize(file.size)}</FileSize>
-                  </FileDetails>
-                  <DeleteButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                      removeFile(index);
-                    }}
-                    title="Remove file"
-                  >
-                    ×
-                  </DeleteButton>
+                  <FaGripVertical style={{ cursor: 'grab' }} />
+                  {file.name} ({formatFileSize(file.size)})
                 </FileItem>
               ))}
             </FileList>
-            
-            <UploadSubtext>
-              {activeTabData.multiple 
-                ? 'Click or drag to add more files' 
-                : 'Click or drag to replace file'}
-            </UploadSubtext>
           </>
         )}
       </DropArea>
-      
+
       {activeTabId === 'split-pdf' && files.length > 0 && (
-        <SplitControls>
-          <SplitTitle>Select Pages to Extract</SplitTitle>
-          <PageInputGroup>
-            <PageInputWrapper>
-              <PageLabel>From Page</PageLabel>
-              <PageInput
-                type="number"
-                min="1"
-                max={totalPages || undefined}
-                value={startPage}
-                onChange={(e) => handlePageInput(files, 'start', e.target.value)}
-                placeholder="1"
-              />
-            </PageInputWrapper>
-            <Separator>to</Separator>
-            <PageInputWrapper>
-              <PageLabel>To Page</PageLabel>
-              <PageInput
-                type="number"
-                min={startPage || 1}
-                max={totalPages || undefined}
-                value={endPage}
-                onChange={(e) => handlePageInput(files, 'end', e.target.value)}
-                placeholder={totalPages || 'End'}
-              />
-            </PageInputWrapper>
-          </PageInputGroup>
-          {totalPages && (
-            <PageInfo>
-              PDF has {totalPages} page{totalPages !== 1 ? 's' : ''}
-            </PageInfo>
-          )}
-          {splitError && <ErrorText>{splitError}</ErrorText>}
-        </SplitControls>
+        <div>
+          <h3>Select Pages to Extract</h3>
+          <div>
+            <input
+              type="number"
+              min="1"
+              max={totalPages}
+              value={startPage}
+              onChange={(e) => handlePageInput(files, 'start', e.target.value)}
+              placeholder="Start Page"
+            />
+            <span> to </span>
+            <input
+              type="number"
+              min={startPage || 1}
+              max={totalPages}
+              value={endPage}
+              onChange={(e) => handlePageInput(files, 'end', e.target.value)}
+              placeholder="End Page"
+            />
+          </div>
+          {splitError && <div style={{ color: 'red' }}>{splitError}</div>}
+          {totalPages && <div>Total pages: {totalPages}</div>}
+        </div>
       )}
-      
+
       {activeTabId === 'rotate-pdf' && files.length > 0 && (
-        <RotationControls>
-          <RotationTitle>Choose Rotation Angle</RotationTitle>
-          <RotationGrid>
-            <RotationButton
-              onClick={() => setRotationAngle(90)}
-              className={rotationAngle === 90 ? 'active' : ''}
-            >
-              <RotationIcon angle={90}>
-                <FaArrowUp />
-              </RotationIcon>
-              Rotate Right (90°)
-            </RotationButton>
-            <RotationButton
-              onClick={() => setRotationAngle(180)}
-              className={rotationAngle === 180 ? 'active' : ''}
-            >
-              <RotationIcon angle={180}>
-                <FaArrowUp />
-              </RotationIcon>
-              Upside Down (180°)
-            </RotationButton>
-            <RotationButton
-              onClick={() => setRotationAngle(270)}
-              className={rotationAngle === 270 ? 'active' : ''}
-            >
-              <RotationIcon angle={270}>
-                <FaArrowUp />
-              </RotationIcon>
-              Rotate Left (270°)
-            </RotationButton>
-          </RotationGrid>
-        </RotationControls>
+        <div>
+          <h3>Choose Rotation Angle</h3>
+          <div>
+            <button onClick={() => setRotationAngle(90)}>
+              90° {rotationAngle === 90 && '✓'}
+            </button>
+            <button onClick={() => setRotationAngle(180)}>
+              180° {rotationAngle === 180 && '✓'}
+            </button>
+            <button onClick={() => setRotationAngle(270)}>
+              270° {rotationAngle === 270 && '✓'}
+            </button>
+          </div>
+        </div>
       )}
-      
+
       {files.length > 0 && isConversionWithIndividualOption(activeTabId) && (
-        <ConversionToggle>
-          <ToggleButton
-            active={individualConversion}
-            onClick={() => setIndividualConversion(!individualConversion)}
-          >
-            {individualConversion ? <FaCheck /> : <FaObjectGroup />}
-            {individualConversion ? 'Individual Conversion Enabled' : 'Enable Individual Conversion'}
-          </ToggleButton>
-          <ToggleDescription>
-            {individualConversion 
-              ? 'Each image will be converted to a separate PDF file and downloaded as a ZIP folder.'
-              : 'All images will be combined into a single PDF file.'}
-          </ToggleDescription>
-        </ConversionToggle>
+        <div>
+          <label>
+            <input
+              type="checkbox"
+              checked={individualConversion}
+              onChange={() => setIndividualConversion(!individualConversion)}
+            />
+            Convert files individually
+          </label>
+        </div>
       )}
-      
-      <Button 
-        onClick={handleConvert} 
+
+      <Button
+        onClick={handleConvert}
         disabled={!files.length || isConverting}
       >
         {isConverting ? (
@@ -1513,19 +1522,21 @@ const TabConverter = () => {
           </>
         ) : isComplete ? (
           <>
-            <FaCheck /> {`Convert Again`}
+            <FaCheck /> Complete!
           </>
         ) : (
-          `${getActionText(tabs.find(tab => tab.id === activeTabId) || tabs[0])}`
+          <>
+            Convert {files.length} {files.length === 1 ? 'file' : 'files'}
+          </>
         )}
       </Button>
-      
-      {errorMessage && <ErrorMessage>{errorMessage}</ErrorMessage>}
-      
+
+      {errorMessage && (
+        <div style={{ color: 'red', marginTop: '1rem' }}>{errorMessage}</div>
+      )}
+
       {successMessage && (
-        <StatusMessage success>
-          <FaCheck /> {successMessage}
-        </StatusMessage>
+        <div style={{ color: 'green', marginTop: '1rem' }}>{successMessage}</div>
       )}
     </ConverterContainer>
   );
