@@ -608,4 +608,10 @@ export const convertTextToPdf = async (textFiles) => {
       error: error.message || 'Error converting text to PDF'
     };
   }
+};
+
+const sanitizeFileName = (fileName) => {
+  return fileName
+    .replace(/[/\\?%*:|"<>]/g, '-') // Replace invalid characters with hyphen
+    .replace(/[\x00-\x1F\x7F]/g, ''); // Remove control characters safely
 }; 

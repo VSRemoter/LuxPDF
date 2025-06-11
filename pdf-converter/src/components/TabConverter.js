@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaFileUpload, FaCheck, FaSpinner, FaTrash, FaGripVertical, FaArrowUp, FaArrowDown, FaSearch, FaFileWord, FaFileExcel, FaFilePowerpoint, FaFileImage, FaFileAlt, FaFilePdf, FaObjectGroup, FaCut, FaCompress } from 'react-icons/fa';
+import { FaFileUpload, FaCheck, FaSpinner, FaTrash, FaGripVertical, FaArrowUp, FaArrowDown, FaSearch, FaFileImage, FaFileAlt, FaFilePdf, FaObjectGroup, FaCut, FaCompress } from 'react-icons/fa';
 import { saveAs } from 'file-saver';
-import { convertPdfToImage, convertImageToPdf, convertMultipleImagesToPdf, mergePDFs, splitPDF, compressPDF, rotatePDF, convertPdfToText, convertTextToPdf } from '../utils/converter';
+import { convertPdfToImage, convertImageToPdf, convertMultipleImagesToPdf, mergePDFs, splitPDF, compressPDF, rotatePDF, convertPdfToText } from '../utils/converter';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import JSZip from 'jszip';
 
@@ -537,139 +537,22 @@ const DeleteButton = styled.button`
 `;
 
 const TabConverter = () => {
-  const [activeTabId, setActiveTabId] = useState('pdf-to-jpg');
-  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [activeTab, setActiveTab] = useState('merge');
+  const [files, setFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [isConverting, setConverting] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [draggedItem, setDraggedItem] = useState(null);
-  const [draggedOverItem, setDraggedOverItem] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredTabs, setFilteredTabs] = useState([]);
-  const fileItemRefs = useRef([]);
-  const searchInputRef = useRef(null);
-  const [rotationAngle, setRotationAngle] = useState(90);
-  const [startPage, setStartPage] = useState('');
-  const [endPage, setEndPage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [totalPages, setTotalPages] = useState(null);
-  const [splitError, setSplitError] = useState('');
-  const [individualConversion, setIndividualConversion] = useState(false);
-  const [draggedFile, setDraggedFile] = useState(null);
-  const [dragOverFile, setDragOverFile] = useState(null);
+  const [isConverting, setIsConverting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const fileInputRef = useRef(null);
+  const [conversionProgress, setConversionProgress] = useState(0);
   
-  const tabs = [
-    {
-      id: 'pdf-to-jpg',
-      label: 'PDF to JPG',
-      icon: <FaFileImage />,
-      description: 'Convert PDF to JPG images',
-      accept: '.pdf',
-      multiple: true,
-      acceptedFormats: ['.pdf']
-    },
-    {
-      id: 'jpg-to-pdf',
-      label: 'JPG to PDF',
-      icon: <FaFilePdf />,
-      description: 'Convert JPG images to PDF',
-      accept: '.jpg,.jpeg',
-      multiple: true,
-      acceptedFormats: ['.jpg', '.jpeg']
-    },
-    {
-      id: 'pdf-to-png',
-      label: 'PDF to PNG',
-      icon: <FaFileImage />,
-      description: 'Convert PDF to PNG images',
-      accept: '.pdf',
-      multiple: true,
-      acceptedFormats: ['.pdf']
-    },
-    {
-      id: 'png-to-pdf',
-      label: 'PNG to PDF',
-      icon: <FaFilePdf />,
-      description: 'Convert PNG images to PDF',
-      accept: '.png',
-      multiple: true,
-      acceptedFormats: ['.png']
-    },
-    {
-      id: 'pdf-to-webp',
-      label: 'PDF to WEBP',
-      icon: <FaFileImage />,
-      description: 'Convert PDF to WEBP images',
-      accept: '.pdf',
-      multiple: true,
-      acceptedFormats: ['.pdf']
-    },
-    {
-      id: 'webp-to-pdf',
-      label: 'WEBP to PDF',
-      icon: <FaFilePdf />,
-      description: 'Convert WEBP images to PDF',
-      accept: '.webp',
-      multiple: true,
-      acceptedFormats: ['.webp']
-    },
-    {
-      id: 'pdf-to-text',
-      label: 'PDF to TXT',
-      icon: <FaFileAlt />,
-      description: 'Extract text from PDF',
-      accept: '.pdf',
-      multiple: true,
-      acceptedFormats: ['.pdf']
-    },
-    {
-      id: 'text-to-pdf',
-      label: 'TXT to PDF',
-      icon: <FaFilePdf />,
-      description: 'Convert text file to PDF',
-      accept: '.txt',
-      multiple: true,
-      acceptedFormats: ['.txt']
-    },
-    {
-      id: 'merge-pdf',
-      label: 'Merge PDFs',
-      icon: <FaObjectGroup />,
-      description: 'Combine multiple PDFs into one',
-      accept: '.pdf',
-      multiple: true,
-      acceptedFormats: ['.pdf']
-    },
-    {
-      id: 'split-pdf',
-      label: 'Split PDF',
-      icon: <FaCut />,
-      description: 'Split PDF into multiple files',
-      accept: '.pdf',
-      multiple: false,
-      acceptedFormats: ['.pdf']
-    },
-    {
-      id: 'compress-pdf',
-      label: 'Compress PDF',
-      icon: <FaCompress />,
-      description: 'Reduce PDF file size',
-      accept: '.pdf',
-      multiple: true,
-      acceptedFormats: ['.pdf']
-    },
-    {
-      id: 'rotate-pdf',
-      label: 'Rotate PDF',
-      icon: <FaArrowUp />,
-      description: 'Rotate PDF',
-      accept: '.pdf',
-      multiple: true,
-      acceptedFormats: ['.pdf']
-    }
-  ];
+  // Remove unused state
+  const fileItemRefs = useRef({});
   
+  useEffect(() => {
+    // Update the document title based on active tab
+    document.title = `LuxPDF - ${getActionText(activeTab)}`;
+  }, [activeTab]);
+
   // Auto-focus the search input when component mounts
   useEffect(() => {
     if (searchInputRef.current) {
@@ -706,13 +589,13 @@ const TabConverter = () => {
   
   const handleTabChange = (tabId) => {
     setActiveTabId(tabId);
-    setSelectedFiles([]);
+    setFiles([]);
     setIsComplete(false);
   };
   
   const handleFileChange = async (event) => {
     const newFiles = Array.from(event.target.files);
-    setSelectedFiles(newFiles);
+    setFiles(newFiles);
     
     if (activeTabId === 'splitPdf' && newFiles.length === 1) {
       try {
@@ -755,7 +638,7 @@ const TabConverter = () => {
     e.preventDefault();
     if (!draggedFile || targetFile === draggedFile) return;
 
-    const newFiles = [...selectedFiles];
+    const newFiles = [...files];
     const draggedIndex = newFiles.indexOf(draggedFile);
     const targetIndex = newFiles.indexOf(targetFile);
 
@@ -764,7 +647,7 @@ const TabConverter = () => {
     // Insert it at the new position
     newFiles.splice(targetIndex, 0, draggedFile);
 
-    setSelectedFiles(newFiles);
+    setFiles(newFiles);
     setDraggedFile(null);
     setDragOverFile(null);
   };
@@ -791,7 +674,7 @@ const TabConverter = () => {
 
     // Add valid files even if some were invalid
     if (validFiles.length > 0) {
-      setSelectedFiles(prevFiles => [...prevFiles, ...validFiles]);
+      setFiles(prevFiles => [...prevFiles, ...validFiles]);
     }
   };
   
@@ -1106,9 +989,9 @@ const TabConverter = () => {
   };
   
   const handleConvert = async () => {
-    if (!selectedFiles.length) return;
+    if (!files.length) return;
 
-    setConverting(true);
+    setIsConverting(true);
     setErrorMessage('');
     setSuccessMessage('');
 
@@ -1120,7 +1003,7 @@ const TabConverter = () => {
         if (individualConversion) {
           const zipFile = new JSZip();
           
-          for (const file of selectedFiles) {
+          for (const file of files) {
             try {
               const text = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -1150,11 +1033,11 @@ const TabConverter = () => {
           
           const zipContent = await zipFile.generateAsync({ type: 'blob' });
           saveAs(zipContent, 'individual_text_pdfs.zip');
-          } else {
+        } else {
           // Combined conversion
           const pdfDoc = await PDFDocument.create();
           
-          for (const file of selectedFiles) {
+          for (const file of files) {
             try {
               const text = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -1203,7 +1086,7 @@ const TabConverter = () => {
           // Individual conversion logic
           const zipFile = new JSZip();
           
-          for (const file of selectedFiles) {
+          for (const file of files) {
             try {
               const img = await createImageBitmap(file);
               const canvas = document.createElement('canvas');
@@ -1242,7 +1125,7 @@ const TabConverter = () => {
           // Combined PDF logic
           const pdfDoc = await PDFDocument.create();
           
-          for (const file of selectedFiles) {
+          for (const file of files) {
             try {
               const img = await createImageBitmap(file);
               const canvas = document.createElement('canvas');
@@ -1270,14 +1153,14 @@ const TabConverter = () => {
           }
           
           const pdfBytes = await pdfDoc.save();
-          const fileName = selectedFiles.length > 1 ? 'combined_images.pdf' : selectedFiles[0].name.split('.')[0] + '.pdf';
+          const fileName = files.length > 1 ? 'combined_images.pdf' : files[0].name.split('.')[0] + '.pdf';
           saveAs(new Blob([pdfBytes]), fileName);
         }
       } else if (activeTabId === 'pdf-to-jpg' || activeTabId === 'pdf-to-png' || activeTabId === 'pdf-to-webp') {
         // Handle PDF to image conversions
         const format = activeTabId.split('-').pop().toUpperCase();
         
-        for (const file of selectedFiles) {
+        for (const file of files) {
           try {
             const result = await convertPdfToImage(file, format);
             if (!result.success) {
@@ -1306,18 +1189,18 @@ const TabConverter = () => {
         }
       } else if (activeTabId === 'pdf-to-text') {
         // Handle PDF to text conversions
-        if (selectedFiles.length === 1) {
+        if (files.length === 1) {
           // Single file - convert and save directly
-          const result = await convertPdfToText(selectedFiles[0]);
+          const result = await convertPdfToText(files[0]);
           if (!result.success) {
-            throw new Error(`Failed to convert ${selectedFiles[0].name}: ${result.error}`);
+            throw new Error(`Failed to convert ${files[0].name}: ${result.error}`);
           }
           saveAs(new Blob([result.data]), result.fileName);
         } else {
           // Multiple files - create ZIP with all text files
           const zipFile = new JSZip();
           
-          for (const file of selectedFiles) {
+          for (const file of files) {
             try {
               const result = await convertPdfToText(file);
               if (!result.success) {
@@ -1340,19 +1223,19 @@ const TabConverter = () => {
         let result;
         switch (activeTabId) {
         case 'merge-pdf':
-          result = await mergePDFs(selectedFiles);
+          result = await mergePDFs(files);
           break;
         case 'split-pdf':
           if (!startPage || !endPage) {
             throw new Error('Please enter both start and end page numbers');
           }
-          result = await splitPDF(selectedFiles[0], parseInt(startPage), parseInt(endPage));
+          result = await splitPDF(files[0], parseInt(startPage), parseInt(endPage));
           break;
         case 'compress-pdf':
-          result = await compressPDF(selectedFiles);
+          result = await compressPDF(files);
           break;
           case 'rotate-pdf':
-            result = await rotatePDF(selectedFiles[0], rotationAngle);
+            result = await rotatePDF(files[0], rotationAngle);
             break;
         default:
           throw new Error('Unsupported conversion type');
@@ -1364,18 +1247,18 @@ const TabConverter = () => {
       }
 
       setIsComplete(true);
-      const fileText = selectedFiles.length === 1 ? 'file' : 'files';
+      const fileText = files.length === 1 ? 'file' : 'files';
       setSuccessMessage(`Successfully ${getActionText(activeTab)} ${fileText}!`);
     } catch (error) {
       console.error('Conversion error:', error);
       setErrorMessage(error.message || 'Error during conversion. Please try again.');
     } finally {
-      setConverting(false);
+      setIsConverting(false);
     }
   };
   
   const getActionText = (tab) => {
-    const fileCount = selectedFiles.length;
+    const fileCount = files.length;
     const fileText = fileCount > 1 ? `${fileCount} files` : 'file';
     
     switch (tab.id) {
@@ -1421,7 +1304,7 @@ const TabConverter = () => {
   };
   
   const removeFile = (indexToRemove) => {
-    setSelectedFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
+    setFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
     setErrorMessage(''); // Clear any error messages when removing files
   };
   
@@ -1468,7 +1351,7 @@ const TabConverter = () => {
         onDrop={handleFilesDrop}
         onClick={() => document.getElementById('file-upload').click()}
       >
-        {selectedFiles.length === 0 ? (
+        {files.length === 0 ? (
           <>
             <UploadIcon>
               <FaFileUpload />
@@ -1487,7 +1370,7 @@ const TabConverter = () => {
         ) : (
           <>
             <FileList>
-              {selectedFiles.map((file, index) => (
+              {files.map((file, index) => (
                 <FileItem 
                   key={`${file.name}-${index}`}
                   draggable
@@ -1531,7 +1414,7 @@ const TabConverter = () => {
         )}
       </DropArea>
       
-      {activeTabId === 'split-pdf' && selectedFiles.length > 0 && (
+      {activeTabId === 'split-pdf' && files.length > 0 && (
         <SplitControls>
           <SplitTitle>Select Pages to Extract</SplitTitle>
           <PageInputGroup>
@@ -1542,7 +1425,7 @@ const TabConverter = () => {
                 min="1"
                 max={totalPages || undefined}
                 value={startPage}
-                onChange={(e) => handlePageInput(selectedFiles, 'start', e.target.value)}
+                onChange={(e) => handlePageInput(files, 'start', e.target.value)}
                 placeholder="1"
               />
             </PageInputWrapper>
@@ -1554,7 +1437,7 @@ const TabConverter = () => {
                 min={startPage || 1}
                 max={totalPages || undefined}
                 value={endPage}
-                onChange={(e) => handlePageInput(selectedFiles, 'end', e.target.value)}
+                onChange={(e) => handlePageInput(files, 'end', e.target.value)}
                 placeholder={totalPages || 'End'}
               />
             </PageInputWrapper>
@@ -1568,7 +1451,7 @@ const TabConverter = () => {
         </SplitControls>
       )}
       
-      {activeTabId === 'rotate-pdf' && selectedFiles.length > 0 && (
+      {activeTabId === 'rotate-pdf' && files.length > 0 && (
         <RotationControls>
           <RotationTitle>Choose Rotation Angle</RotationTitle>
           <RotationGrid>
@@ -1603,7 +1486,7 @@ const TabConverter = () => {
         </RotationControls>
       )}
       
-      {selectedFiles.length > 0 && isConversionWithIndividualOption(activeTabId) && (
+      {files.length > 0 && isConversionWithIndividualOption(activeTabId) && (
         <ConversionToggle>
           <ToggleButton
             active={individualConversion}
@@ -1622,7 +1505,7 @@ const TabConverter = () => {
       
       <Button 
         onClick={handleConvert} 
-        disabled={!selectedFiles.length || isConverting}
+        disabled={!files.length || isConverting}
       >
         {isConverting ? (
           <>
