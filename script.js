@@ -306,7 +306,7 @@ class PDFConverterPro {
             'heic-to-pdf': {
                 title: 'HEIC to PDF Converter',
                 accept: '.heic,.heif',
-                description: 'Convert HEIC images to PDF documents'
+                description: 'Convert HEIC/HEIF images to PDF documents'
             }
         };
         return configs[toolName] || { title: 'PDF Tool', accept: '*', description: '' };
