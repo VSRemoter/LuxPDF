@@ -7,36 +7,57 @@
 
 :root {
     /* New Professional Color Palette */
-    --primary-color: #00D2FF;      /* Cyan Blue - Primary actions */
-    --primary-dark: #0F0F23;       /* Deep Navy - Main background */
-    --primary-light: #A55EEA;      /* Premium Purple - Luxury accents */
+    --primary-color: #00D2FF;
+    /* Cyan Blue - Primary actions */
+    --primary-dark: #0F0F23;
+    /* Deep Navy - Main background */
+    --primary-light: #A55EEA;
+    /* Premium Purple - Luxury accents */
 
-    --secondary-color: #1E1E3F;    /* Rich Dark Blue - Secondary backgrounds */
+    --secondary-color: #1E1E3F;
+    /* Rich Dark Blue - Secondary backgrounds */
 
-    --accent-color: #00D2FF;       /* Cyan Blue - Primary accent */
-    --accent-dark: #A55EEA;        /* Premium Purple - Accent hover */
+    --accent-color: #00D2FF;
+    /* Cyan Blue - Primary accent */
+    --accent-dark: #A55EEA;
+    /* Premium Purple - Accent hover */
 
-    --text-primary: #C8D6E5;       /* Cool Light Gray - Primary text */
-    --text-secondary: #00D2FF;     /* Cyan Blue - Secondary text */
-    --text-inverted: #0F0F23;      /* Deep Navy - Text on light backgrounds */
+    --text-primary: #C8D6E5;
+    /* Cool Light Gray - Primary text */
+    --text-secondary: #00D2FF;
+    /* Cyan Blue - Secondary text */
+    --text-inverted: #0F0F23;
+    /* Deep Navy - Text on light backgrounds */
 
-    --background-primary: #0F0F23; /* Deep Navy - Main background */
-    --background-secondary: #1E1E3F;/* Rich Dark Blue - Cards, modals */
+    --background-primary: #0F0F23;
+    /* Deep Navy - Main background */
+    --background-secondary: #1E1E3F;
+    /* Rich Dark Blue - Cards, modals */
     --background-secondary-rgb: 30, 30, 63;
-    --background-tertiary: #2D4263; /* Professional Blue-Gray - Borders */
+    --background-tertiary: #2D4263;
+    /* Professional Blue-Gray - Borders */
 
     /* Status Colors */
-    --danger-color: #FF6B6B;       /* Coral Red - Error states */
-    --success-color: #10AC84;      /* Success Green - Security badges */
-    --info-color: #00D2FF;         /* Cyan Blue - Info states */
-    --support-us-color: #a65eea;   /* Premium Purple for Support Us link */
+    --danger-color: #FF6B6B;
+    /* Coral Red - Error states */
+    --success-color: #10AC84;
+    /* Success Green - Security badges */
+    --info-color: #00D2FF;
+    /* Cyan Blue - Info states */
+    --support-us-color: #a65eea;
+    /* Premium Purple for Support Us link */
 
     /* Additional Color Variables */
-    --background-light: #2D4263;   /* Professional Blue-Gray - Light backgrounds */
-    --background-dark: #0F0F23;    /* Deep Navy - Dark backgrounds */
-    --text-light: #C8D6E5;         /* Cool Light Gray - Light text */
-    --text-dark: #0F0F23;          /* Deep Navy - Dark text */
-    --border-color: #2D4263;       /* Professional Blue-Gray - Borders */
+    --background-light: #2D4263;
+    /* Professional Blue-Gray - Light backgrounds */
+    --background-dark: #0F0F23;
+    /* Deep Navy - Dark backgrounds */
+    --text-light: #C8D6E5;
+    /* Cool Light Gray - Light text */
+    --text-dark: #0F0F23;
+    /* Deep Navy - Dark text */
+    --border-color: #2D4263;
+    /* Professional Blue-Gray - Borders */
 
     /* UI Elements */
     --border-radius: 12px;
@@ -59,7 +80,9 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 20px;
-}/* Header
+}
+
+/* Header
  */
 .header {
     background: var(--background-primary);
@@ -106,7 +129,8 @@ body {
 
 .nav-link[href="/support.html"] {
     color: var(--support-us-color) !important;
-    font-weight: 700 !important; /* Make it pop */
+    font-weight: 700 !important;
+    /* Make it pop */
 }
 
 .nav-link:after {
@@ -187,7 +211,9 @@ body {
 
 .privacy-badge i {
     font-size: 1.2rem;
-}/* To
+}
+
+/* To
 ols Section */
 .tools-section {
     padding: 6rem 0;
@@ -350,6 +376,7 @@ ols Section */
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -407,7 +434,9 @@ ols Section */
 
 .modal-body {
     padding: 2rem;
-}/* 
+}
+
+/* 
 Upload Area */
 .upload-area {
     border: 2px dashed var(--background-tertiary);
@@ -753,7 +782,8 @@ Upload Area */
 }
 
 .faq-item.active .faq-answer {
-    max-height: 500px; /* Adjust as needed */
+    max-height: 500px;
+    /* Adjust as needed */
     padding: 0.5rem 1rem 1.5rem 1rem;
 }
 
@@ -933,11 +963,11 @@ Upload Area */
     left: 0;
     width: 100%;
     height: 1px;
-    background: linear-gradient(90deg, 
-        rgba(0, 210, 255, 0), 
-        rgba(0, 210, 255, 0.5), 
-        rgba(165, 94, 234, 0.5), 
-        rgba(165, 94, 234, 0));
+    background: linear-gradient(90deg,
+            rgba(0, 210, 255, 0),
+            rgba(0, 210, 255, 0.5),
+            rgba(165, 94, 234, 0.5),
+            rgba(165, 94, 234, 0));
 }
 
 .footer-content {
@@ -1124,7 +1154,7 @@ Upload Area */
         width: 320px !important;
         height: 50px !important;
     }
-    
+
     .ad-container ins[style*="336px"] {
         width: 300px !important;
         height: 250px !important;
@@ -1219,7 +1249,9 @@ Upload Area */
     100% {
         transform: scale(1);
     }
-}/* Noti
+}
+
+/* Noti
 fication System */
 .notification {
     position: fixed;
@@ -1376,7 +1408,9 @@ fication System */
 .preview-file:hover {
     background: rgba(0, 210, 255, 0.3);
     transform: scale(1.1);
-}/* Preview
+}
+
+/* Preview
  Modal */
 #preview-modal .modal-content {
     max-width: 90%;
@@ -1625,7 +1659,9 @@ fication System */
     margin: 0 auto 2.5rem;
     color: rgba(200, 214, 229, 0.8);
     font-size: 1.1rem;
-}/* Abou
+}
+
+/* Abou
 t Section */
 .about-section {
     padding: 6rem 0;
@@ -1782,7 +1818,9 @@ t Section */
     color: rgba(200, 214, 229, 0.8);
     margin: 0;
     padding-left: 1.6rem;
-}/* Compariso
+}
+
+/* Compariso
 n Table Section */
 .comparison-section {
     padding: 6rem 0;
@@ -1856,15 +1894,16 @@ n Table Section */
 
 /* Responsive styles for comparison table */
 @media (max-width: 768px) {
+
     .comparison-table th,
     .comparison-table td {
         padding: 0.8rem;
     }
-    
+
     .comparison-table {
         font-size: 0.9rem;
     }
-    
+
     .about-content {
         grid-template-columns: 1fr;
         gap: 2rem;
@@ -1876,11 +1915,12 @@ n Table Section */
 }
 
 @media (max-width: 480px) {
+
     .comparison-table th,
     .comparison-table td {
         padding: 0.6rem;
     }
-    
+
     .comparison-table {
         font-size: 0.8rem;
     }
@@ -1910,9 +1950,11 @@ n Table Section */
     0% {
         box-shadow: 0 0 0 0 rgba(16, 172, 132, 0.4);
     }
+
     70% {
         box-shadow: 0 0 0 10px rgba(16, 172, 132, 0);
     }
+
     100% {
         box-shadow: 0 0 0 0 rgba(16, 172, 132, 0);
     }
@@ -1933,10 +1975,10 @@ n Table Section */
 /* Encryption visual elements */
 .encryption-line {
     height: 2px;
-    background: linear-gradient(90deg, 
-        var(--accent-color), 
-        var(--accent-dark), 
-        var(--accent-color));
+    background: linear-gradient(90deg,
+            var(--accent-color),
+            var(--accent-dark),
+            var(--accent-color));
     width: 100%;
     margin: 2rem 0;
     position: relative;
@@ -1960,6 +2002,7 @@ n Table Section */
     0% {
         left: -100%;
     }
+
     100% {
         left: 100%;
     }
@@ -2061,11 +2104,11 @@ n Table Section */
         gap: 0.8rem;
         padding: 0.8rem;
     }
-    
+
     .page-thumbnail {
         padding: 0.6rem;
     }
-    
+
     .thumbnail-header {
         font-size: 0.7rem;
         padding: 0.2rem 0.4rem;
@@ -2382,27 +2425,27 @@ n Table Section */
     .changelog-timeline::before {
         left: 15px;
     }
-    
+
     .changelog-entry {
         margin-left: 40px;
     }
-    
+
     .changelog-entry::before {
         left: -30px;
         width: 12px;
         height: 12px;
     }
-    
+
     .changelog-header {
         flex-direction: column;
         align-items: flex-start;
         text-align: left;
     }
-    
+
     .roadmap-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .changelog-hero {
         padding: 3rem 0;
     }
@@ -2504,7 +2547,8 @@ n Table Section */
 }
 
 .content-block ul li::before {
-    content: '\f058'; /* Font Awesome check-circle icon */
+    content: '\f058';
+    /* Font Awesome check-circle icon */
     font-family: 'Font Awesome 5 Free';
     font-weight: 900;
     position: absolute;
@@ -2528,10 +2572,10 @@ n Table Section */
 
 /* Encryption line animation fix */
 .encryption-line::before {
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(200, 214, 229, 0.8), 
-        transparent);
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(200, 214, 229, 0.8),
+            transparent);
     animation: encryption-animation 3s linear infinite;
 }
 
@@ -2539,6 +2583,7 @@ n Table Section */
     0% {
         left: -100%;
     }
+
     100% {
         left: 100%;
     }
@@ -2580,12 +2625,14 @@ n Table Section */
 }
 
 .faq-item.active .faq-answer {
-    max-height: 500px; /* Adjust as needed for content */
+    max-height: 500px;
+    /* Adjust as needed for content */
     padding: 1.5rem;
 }
 
 .faq-question::after {
-    content: '\f078'; /* Font Awesome chevron-down */
+    content: '\f078';
+    /* Font Awesome chevron-down */
     font-family: 'Font Awesome 5 Free';
     font-weight: 900;
     transition: transform 0.3s ease;
@@ -2629,18 +2676,28 @@ n Table Section */
     transition: 0.35s ease-in-out;
 }
 
-.hamburger-icon span:nth-child(1) { top: 0; }
-.hamburger-icon span:nth-child(2) { top: 8px; }
-.hamburger-icon span:nth-child(3) { top: 16px; }
+.hamburger-icon span:nth-child(1) {
+    top: 0;
+}
+
+.hamburger-icon span:nth-child(2) {
+    top: 8px;
+}
+
+.hamburger-icon span:nth-child(3) {
+    top: 16px;
+}
 
 /* Transform into X when active */
 .hamburger-icon.active span:nth-child(1) {
     top: 8px;
     transform: rotate(135deg);
 }
+
 .hamburger-icon.active span:nth-child(2) {
     opacity: 0;
 }
+
 .hamburger-icon.active span:nth-child(3) {
     top: 8px;
     transform: rotate(-135deg);

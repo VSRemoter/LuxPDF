@@ -302,6 +302,11 @@ class PDFConverterPro {
                 title: 'Sort PDF Pages',
                 accept: '.pdf',
                 description: 'Swap & sort PDF pages in anyway you want'
+            },
+            'heic-to-pdf': {
+                title: 'HEIC to PDF Converter',
+                accept: '.heic,.heif',
+                description: 'Convert HEIC images to PDF documents'
             }
         };
         return configs[toolName] || { title: 'PDF Tool', accept: '*', description: '' };
@@ -783,6 +788,21 @@ class PDFConverterPro {
                 // Add event listener for reverse button immediately after DOM is updated
                 this.setupReverseButtonListener();
                 break;
+
+            case 'heic-to-pdf':
+                optionsContainer.innerHTML = `
+                    <div class="option-group">
+                        <label>Conversion Mode</label>
+                        <select id="conversion-mode">
+                            <option value="individual">Individual PDFs (one per HEIC file)</option>
+                            <option value="combined">Merge all into single PDF</option>
+                        </select>
+                        <p style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.5rem;">
+                            Choose how you want your HEIC images converted to PDF format.
+                        </p>
+                    </div>
+                `;
+                break;
         }
     }
 
@@ -863,6 +883,9 @@ class PDFConverterPro {
                     break;
                 case 'sort-pages':
                     results = await this.sortPages();
+                    break;
+                case 'heic-to-pdf':
+                    results = await this.heicToPdf();
                     break;
                 default:
                     throw new Error('Unknown tool: ' + this.currentTool);
@@ -2930,6 +2953,316 @@ class PDFConverterPro {
                 }
             }
         });
+    }
+
+
+
+
+
+    // HEIC to PDF functionality
+    async heicToPdf() {
+        const results = [];
+        const conversionMode = document.getElementById('conversion-mode')?.value || 'individual';
+
+        if (conversionMode === 'combined') {
+            // Combine all HEIC files into a single PDF
+            const pdfDoc = await PDFLib.PDFDocument.create();
+
+            for (const file of this.uploadedFiles) {
+                try {
+                    // Convert HEIC to JPEG
+                    const jpegBlob = await heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.9
+                    });
+
+                    const jpegArrayBuffer = await jpegBlob.arrayBuffer();
+                    const jpegImage = await pdfDoc.embedJpg(jpegArrayBuffer);
+
+                    // Calculate dimensions to fit the page
+                    const page = pdfDoc.addPage();
+                    const { width: pageWidth, height: pageHeight } = page.getSize();
+                    const { width: imgWidth, height: imgHeight } = jpegImage;
+
+                    const scale = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+                    const scaledWidth = imgWidth * scale;
+                    const scaledHeight = imgHeight * scale;
+
+                    const x = (pageWidth - scaledWidth) / 2;
+                    const y = (pageHeight - scaledHeight) / 2;
+
+                    page.drawImage(jpegImage, {
+                        x,
+                        y,
+                        width: scaledWidth,
+                        height: scaledHeight
+                    });
+                } catch (error) {
+                    console.error('Error processing HEIC file:', error);
+                    throw new Error(`Failed to process ${file.name}: ${error.message}`);
+                }
+            }
+
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+            results.push({
+                name: 'combined_heic.pdf',
+                type: 'application/pdf',
+                size: blob.size,
+                url: URL.createObjectURL(blob)
+            });
+        } else {
+            // Convert each HEIC file to individual PDF
+            for (const file of this.uploadedFiles) {
+                try {
+                    // Convert HEIC to JPEG
+                    const jpegBlob = await heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.9
+                    });
+
+                    const jpegArrayBuffer = await jpegBlob.arrayBuffer();
+                    const pdfDoc = await PDFLib.PDFDocument.create();
+                    const jpegImage = await pdfDoc.embedJpg(jpegArrayBuffer);
+
+                    // Calculate dimensions to fit the page
+                    const page = pdfDoc.addPage();
+                    const { width: pageWidth, height: pageHeight } = page.getSize();
+                    const { width: imgWidth, height: imgHeight } = jpegImage;
+
+                    const scale = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+                    const scaledWidth = imgWidth * scale;
+                    const scaledHeight = imgHeight * scale;
+
+                    const x = (pageWidth - scaledWidth) / 2;
+                    const y = (pageHeight - scaledHeight) / 2;
+
+                    page.drawImage(jpegImage, {
+                        x,
+                        y,
+                        width: scaledWidth,
+                        height: scaledHeight
+                    });
+
+                    const pdfBytes = await pdfDoc.save();
+                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+                    const baseName = file.name.replace(/\.(heic|heif)$/i, '');
+                    const fileName = `${baseName}.pdf`;
+
+                    results.push({
+                        name: fileName,
+                        type: 'application/pdf',
+                        size: blob.size,
+                        url: URL.createObjectURL(blob)
+                    });
+                } catch (error) {
+                    console.error('Error converting HEIC:', error);
+                    throw new Error(`Failed to convert ${file.name}: ${error.message}`);
+                }
+            }
+        }
+
+        return results;
+    }
+
+    // Helper method to add HTML content to PDF
+    async addHtmlContentToPdf(pdfDoc, htmlContent) {
+        // Simple HTML to PDF conversion
+        // This is a basic implementation - for more complex HTML rendering,
+        // you might want to use a more sophisticated library
+        
+        const page = pdfDoc.addPage();
+        const { width, height } = page.getSize();
+        
+        // Strip HTML tags and convert to plain text for basic rendering
+        const textContent = htmlContent
+            .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n\n$1\n')
+            .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n')
+            .replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .trim();
+
+        // Add text to PDF
+        const fontSize = 12;
+        const margin = 50;
+        const lineHeight = fontSize * 1.2;
+        const maxWidth = width - (margin * 2);
+        
+        const lines = textContent.split('\n');
+        let y = height - margin;
+        
+        let currentPage = page;
+        
+        for (const line of lines) {
+            if (y < margin) {
+                // Add new page if needed
+                currentPage = pdfDoc.addPage();
+                y = currentPage.getSize().height - margin;
+            }
+            
+            if (line.trim()) {
+                currentPage.drawText(line, {
+                    x: margin,
+                    y: y,
+                    size: fontSize,
+                    maxWidth: maxWidth
+                });
+            }
+            
+            y -= lineHeight;
+        }
+    }
+
+    // Advanced HTML to PDF conversion method
+    async addAdvancedHtmlContentToPdf(pdfDoc, htmlContent) {
+        const page = pdfDoc.addPage();
+        const { width, height } = page.getSize();
+        
+        // Enhanced HTML to text conversion with better formatting
+        const textContent = this.convertHtmlToFormattedText(htmlContent);
+        
+        // Add text to PDF with improved formatting
+        const fontSize = 12;
+        const margin = 50;
+        const lineHeight = fontSize * 1.4;
+        const maxWidth = width - (margin * 2);
+        
+        const lines = textContent.split('\n');
+        let y = height - margin;
+        let currentPage = page;
+        
+        for (const line of lines) {
+            if (y < margin + lineHeight) {
+                // Add new page if needed
+                currentPage = pdfDoc.addPage();
+                y = currentPage.getSize().height - margin;
+            }
+            
+            if (line.trim()) {
+                // Determine font size based on content type
+                let currentFontSize = fontSize;
+                let cleanLine = line;
+                
+                // Handle headers
+                if (line.startsWith('# ')) {
+                    currentFontSize = fontSize * 1.8;
+                    cleanLine = line.substring(2);
+                    y -= lineHeight * 0.5; // Extra spacing before headers
+                } else if (line.startsWith('## ')) {
+                    currentFontSize = fontSize * 1.5;
+                    cleanLine = line.substring(3);
+                    y -= lineHeight * 0.3;
+                } else if (line.startsWith('### ')) {
+                    currentFontSize = fontSize * 1.3;
+                    cleanLine = line.substring(4);
+                    y -= lineHeight * 0.2;
+                } else if (line.startsWith('#### ')) {
+                    currentFontSize = fontSize * 1.1;
+                    cleanLine = line.substring(5);
+                }
+                
+                // Handle bold and italic (basic detection)
+                if (cleanLine.includes('**') || cleanLine.includes('__')) {
+                    cleanLine = cleanLine.replace(/\*\*(.*?)\*\*/g, '$1').replace(/__(.*?)__/g, '$1');
+                }
+                
+                if (cleanLine.includes('*') || cleanLine.includes('_')) {
+                    cleanLine = cleanLine.replace(/\*(.*?)\*/g, '$1').replace(/_(.*?)_/g, '$1');
+                }
+                
+                // Handle code blocks (monospace simulation)
+                if (cleanLine.includes('`')) {
+                    cleanLine = cleanLine.replace(/`(.*?)`/g, '$1');
+                }
+                
+                // Draw the text
+                try {
+                    currentPage.drawText(cleanLine, {
+                        x: margin,
+                        y: y,
+                        size: currentFontSize,
+                        maxWidth: maxWidth,
+                        lineHeight: lineHeight
+                    });
+                } catch (error) {
+                    // Fallback for problematic characters
+                    const safeText = cleanLine.replace(/[^\x00-\x7F]/g, '?');
+                    currentPage.drawText(safeText, {
+                        x: margin,
+                        y: y,
+                        size: currentFontSize,
+                        maxWidth: maxWidth,
+                        lineHeight: lineHeight
+                    });
+                }
+            }
+            
+            y -= lineHeight;
+        }
+    }
+
+    // Convert HTML to formatted text with better structure preservation
+    convertHtmlToFormattedText(htmlContent) {
+        return htmlContent
+            // Headers
+            .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '\n\n# $1\n')
+            .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '\n\n## $1\n')
+            .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '\n\n### $1\n')
+            .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '\n\n#### $1\n')
+            .replace(/<h5[^>]*>(.*?)<\/h5>/gi, '\n\n##### $1\n')
+            .replace(/<h6[^>]*>(.*?)<\/h6>/gi, '\n\n###### $1\n')
+            // Paragraphs
+            .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+            // Line breaks
+            .replace(/<br\s*\/?>/gi, '\n')
+            // Lists
+            .replace(/<ul[^>]*>/gi, '\n')
+            .replace(/<\/ul>/gi, '\n')
+            .replace(/<ol[^>]*>/gi, '\n')
+            .replace(/<\/ol>/gi, '\n')
+            .replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n')
+            // Blockquotes
+            .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '\n> $1\n')
+            // Code blocks
+            .replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gi, '\n```\n$1\n```\n')
+            .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+            // Tables (basic)
+            .replace(/<table[^>]*>/gi, '\n')
+            .replace(/<\/table>/gi, '\n')
+            .replace(/<tr[^>]*>/gi, '')
+            .replace(/<\/tr>/gi, '\n')
+            .replace(/<th[^>]*>(.*?)<\/th>/gi, '| $1 ')
+            .replace(/<td[^>]*>(.*?)<\/td>/gi, '| $1 ')
+            // Horizontal rules
+            .replace(/<hr[^>]*>/gi, '\n---\n')
+            // Strong and emphasis
+            .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+            .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+            .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+            .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+            // Links
+            .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '$2 ($1)')
+            // Remove remaining HTML tags
+            .replace(/<[^>]*>/g, '')
+            // Clean up HTML entities
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            // Clean up extra whitespace
+            .replace(/\n\s*\n\s*\n/g, '\n\n')
+            .trim();
     }
 }
 

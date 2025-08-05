@@ -407,6 +407,32 @@ const RELATED_TOOLS_CONFIG = {
             description: 'Convert PNG images to PDF documents',
             icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
         }
+    ],
+    'heic-to-pdf': [
+        {
+            name: 'JPEG to PDF',
+            url: '/jpeg-to-pdf.html',
+            description: 'Convert JPEG images to PDF documents',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'PNG to PDF',
+            url: '/png-to-pdf.html',
+            description: 'Convert PNG images to PDF documents',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'TXT to PDF',
+            url: '/txt-to-pdf.html',
+            description: 'Convert text files to PDF documents',
+            icon: '<i class="fas fa-file-alt"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'Merge PDF',
+            url: '/merge-pdf.html',
+            description: 'Combine multiple PDF files into one',
+            icon: '<i class="fas fa-file-pdf"></i><i class="fas fa-plus"></i><i class="fas fa-file-pdf"></i>'
+        }
     ]
 };
 
