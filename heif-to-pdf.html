@@ -66,7 +66,7 @@
                                 <i class="fas fa-mobile-alt"></i> iOS Device Detected
                             </h4>
                             <p style="margin: 0; font-size: 0.9rem;">
-                                For best results, select photos directly from your Photos app. This tool will process both original HEIF files and iOS-converted JPEG files correctly.
+                                Click "Browse" below to select photos from your Photos library or Files app. This tool will process both original HEIF files and iOS-converted JPEG files correctly.
                             </p>
                         </div>
                     </div>
@@ -76,8 +76,8 @@
                         <div class="upload-content">
                             <i class="fas fa-cloud-upload-alt upload-icon"></i>
                             <h4>Drag & Drop HEIF/HEIC Files Here</h4>
-                            <p>or click to select files from Photos</p>
-                            <input type="file" id="file-input" multiple accept=".heif,.heic,image/heif,image/heic,image/heif-sequence,image/heic-sequence" capture="environment">
+                            <p>or click to browse and select files</p>
+                            <input type="file" id="file-input" multiple accept=".heif,.heic,image/heif,image/heic,image/heif-sequence,image/heic-sequence">
                         </div>
                     </div>
 
@@ -149,7 +149,7 @@
                     <h3>How to use the HEIF to PDF tool:</h3>
                     <ol>
                         <li><strong>Step 1:</strong> Drag and drop your .heif files onto the upload area, or click to
-                            select them from your device. <em>On iOS: Select photos directly from the Photos app for best results.</em></li>
+                            browse and select them from your device. <em>On iOS: Choose "Photo Library" when prompted to select from your photos.</em></li>
                         <li><strong>Step 2:</strong> Choose your conversion options (individual PDFs or combined into one).</li>
                         <li><strong>Step 3:</strong> Click the "Process Files" button to start the conversion.</li>
                         <li><strong>Step 4:</strong> Once processed, download your new PDF files from the results
@@ -326,17 +326,11 @@
                 
                 const fileInput = document.getElementById('file-input');
                 if (fileInput) {
-                    // Try to preserve original format on iOS
-                    fileInput.setAttribute('accept', '.heif,.heic,image/heif,image/heic');
+                    // Ensure proper file selection on iOS
+                    fileInput.setAttribute('accept', '.heif,.heic,image/heif,image/heic,image/jpeg,image/jpg');
                     
-                    // Try to prevent iOS conversion by setting specific attributes
-                    fileInput.setAttribute('data-preserve-format', 'true');
-                    
-                    // Add iOS-specific settings to try to preserve HEIF
-                    if (fileInput.webkitdirectory !== undefined) {
-                        // WebKit-specific attributes that might help preserve format
-                        fileInput.style.webkitAppearance = 'none';
-                    }
+                    // Remove any attributes that might force camera
+                    fileInput.removeAttribute('capture');
                     
                     // Add change event listener to detect format conversion
                     fileInput.addEventListener('change', function(e) {
