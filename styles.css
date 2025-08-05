@@ -1990,16 +1990,20 @@ n Table Section */
     position: relative;
 }
 
-.page-thumbnail:hover {
+.page-thumbnail:hover,
+.page-thumbnail.sortable-chosen {
     background: rgba(200, 214, 229, 0.08);
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(15, 15, 35, 0.4);
 }
 
-.page-thumbnail.dragging {
+
+.page-thumbnail.dragging,
+.page-thumbnail.sortable-ghost {
     opacity: 0.6;
     transform: scale(1.05) rotate(2deg);
     z-index: 1000;
+    border: 2px dashed var(--accent-color);
     box-shadow: 0 10px 25px rgba(15, 15, 35, 0.5);
 }
 

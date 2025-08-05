@@ -2688,7 +2688,7 @@ class PDFConverterPro {
 
                 const thumbnailDiv = document.createElement('div');
                 thumbnailDiv.className = 'page-thumbnail';
-                thumbnailDiv.draggable = true;
+                thumbnailDiv.draggable = typeof Sortable === 'undefined';
                 // Store the original page index (0-based) - this represents which page from the original PDF this thumbnail shows
                 thumbnailDiv.setAttribute('data-original-page-index', pageNum - 1);
 
@@ -2702,8 +2702,18 @@ class PDFConverterPro {
                     </div>
                 `;
 
+                // Attach native drag listeners only when SortableJS is not available (desktop fallback)
+            if (typeof Sortable === 'undefined') {
                 this.setupThumbnailDragAndDrop(thumbnailDiv);
+            }
                 thumbnailContainer.appendChild(thumbnailDiv);
+            }
+
+            
+
+            // After all thumbnails rendered, enable SortableJS if available
+            if (typeof Sortable !== 'undefined') {
+                this.enableThumbnailSorting();
             }
 
             this.showNotification(`Generated ${pdf.numPages} page thumbnails. Drag to reorder!`, 'success');
@@ -3000,6 +3010,35 @@ function initializeMobileNav() {
     mobileNav.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', closeMobileMenu);
     });
+}
+
+// Enable touch-friendly sorting for page thumbnails using SortableJS
+if (typeof PDFConverterPro !== 'undefined' && typeof Sortable !== 'undefined') {
+    PDFConverterPro.prototype.enableThumbnailSorting = function () {
+        const container = document.getElementById('page-thumbnails');
+        if (!container) return;
+
+        // Destroy previous instance to avoid duplicates
+        if (this.thumbnailSortable && typeof this.thumbnailSortable.destroy === 'function') {
+            this.thumbnailSortable.destroy();
+        }
+
+        this.thumbnailSortable = Sortable.create(container, {
+            animation: 150,
+            draggable: '.page-thumbnail',
+            touchStartThreshold: 0,
+            forceFallback: true, // always use fallback so ghost follows finger
+            fallbackOnBody: true,
+            fallbackTolerance: 3,
+            draggable: '.page-thumbnail',
+            touchStartThreshold: 0,
+            
+            ghostClass: 'dragging',
+            onEnd: () => {
+                this.showNotification('Pages reordered! Click Process to generate the sorted PDF.', 'success');
+            }
+        });
+    };
 }
 
 // Initialize the main application logic

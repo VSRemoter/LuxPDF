@@ -249,6 +249,27 @@
         </div>
     </footer>
 
+    <!-- Drag & Drop Sorting Library (touch-friendly) -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        /* Mobile drag helpers */
+        #page-thumbnails {
+            touch-action: none; /* allow JS handling */
+        }
+        .page-thumbnail {
+            touch-action: none;
+            cursor: grab;
+        }
+        .page-thumbnail.sortable-ghost {
+            opacity: 0.6;
+            transform: scale(1.05) rotate(2deg);
+            box-shadow: 0 10px 25px rgba(15,15,35,0.5);
+        }
+        .page-thumbnail.sortable-chosen {
+            opacity: 0.9;
+        }
+    </style>
+
     <!-- PDF Processing Libraries -->
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/pako@2.0.4/dist/pako.min.js"></script>
