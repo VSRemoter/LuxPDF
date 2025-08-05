@@ -59,13 +59,25 @@
         <section class="tools-section">
             <div class="container">
                 <div class="tool-interface">
+                    <!-- iOS Notice -->
+                    <div class="ios-notice" id="ios-notice" style="display: none;">
+                        <div style="background: rgba(0, 210, 255, 0.1); border: 1px solid var(--accent-color); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-color);">
+                                <i class="fas fa-mobile-alt"></i> iOS Device Detected
+                            </h4>
+                            <p style="margin: 0; font-size: 0.9rem;">
+                                For best results, select photos directly from your Photos app. This tool will process both original HEIF files and iOS-converted JPEG files correctly.
+                            </p>
+                        </div>
+                    </div>
+                    
                     <!-- File Upload Area -->
                     <div class="upload-area" id="upload-area">
                         <div class="upload-content">
                             <i class="fas fa-cloud-upload-alt upload-icon"></i>
                             <h4>Drag & Drop HEIF/HEIC Files Here</h4>
                             <p>or click to select files from Photos</p>
-                            <input type="file" id="file-input" multiple accept=".heif,.heic,image/heif,image/heic,image/heif-sequence,image/heic-sequence">
+                            <input type="file" id="file-input" multiple accept=".heif,.heic,image/heif,image/heic,image/heif-sequence,image/heic-sequence" capture="environment">
                         </div>
                     </div>
 
@@ -137,7 +149,7 @@
                     <h3>How to use the HEIF to PDF tool:</h3>
                     <ol>
                         <li><strong>Step 1:</strong> Drag and drop your .heif files onto the upload area, or click to
-                            select them from your device.</li>
+                            select them from your device. <em>On iOS: Select photos directly from the Photos app for best results.</em></li>
                         <li><strong>Step 2:</strong> Choose your conversion options (individual PDFs or combined into one).</li>
                         <li><strong>Step 3:</strong> Click the "Process Files" button to start the conversion.</li>
                         <li><strong>Step 4:</strong> Once processed, download your new PDF files from the results
@@ -301,6 +313,57 @@
             window.pdfConverter = new PDFConverterPro();
             window.pdfConverter.currentTool = 'heif-to-pdf';
             window.pdfConverter.setupToolSpecificPage();
+            
+            // iOS-specific handling to preserve HEIF format
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                console.log('iOS device detected, applying HEIF preservation settings');
+                
+                // Show iOS notice
+                const iosNotice = document.getElementById('ios-notice');
+                if (iosNotice) {
+                    iosNotice.style.display = 'block';
+                }
+                
+                const fileInput = document.getElementById('file-input');
+                if (fileInput) {
+                    // Try to preserve original format on iOS
+                    fileInput.setAttribute('accept', '.heif,.heic,image/heif,image/heic');
+                    
+                    // Try to prevent iOS conversion by setting specific attributes
+                    fileInput.setAttribute('data-preserve-format', 'true');
+                    
+                    // Add iOS-specific settings to try to preserve HEIF
+                    if (fileInput.webkitdirectory !== undefined) {
+                        // WebKit-specific attributes that might help preserve format
+                        fileInput.style.webkitAppearance = 'none';
+                    }
+                    
+                    // Add change event listener to detect format conversion
+                    fileInput.addEventListener('change', function(e) {
+                        const files = Array.from(e.target.files);
+                        files.forEach(file => {
+                            console.log('iOS file selected:', {
+                                name: file.name,
+                                type: file.type,
+                                size: file.size,
+                                lastModified: file.lastModified
+                            });
+                            
+                            // Check if iOS converted HEIF to JPEG
+                            if (file.type === 'image/jpeg' && !file.name.toLowerCase().includes('jpeg') && !file.name.toLowerCase().includes('jpg')) {
+                                console.warn('iOS may have converted HEIF to JPEG:', file.name);
+                                // Show user notification about potential conversion
+                                if (window.pdfConverter && window.pdfConverter.showNotification) {
+                                    window.pdfConverter.showNotification(
+                                        '📱 iOS detected: If your photo was converted to JPEG, the tool will still process it correctly.',
+                                        'info'
+                                    );
+                                }
+                            }
+                        });
+                    });
+                }
+            }
         });
     </script>
 </body>

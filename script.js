@@ -310,7 +310,7 @@ class PDFConverterPro {
             },
             'heif-to-pdf': {
                 title: 'HEIF to PDF Converter',
-                accept: '.heif,.heic',
+                accept: '.heif,.heic,.jpg,.jpeg',
                 description: 'Convert HEIF images to PDF documents'
             }
         };
@@ -371,18 +371,30 @@ class PDFConverterPro {
             if (file.type.includes(cleanType)) return true;
             
             // Special handling for HEIF/HEIC files on mobile devices
-            if ((cleanType === 'heif' || cleanType === 'heic') && this.currentTool === 'heif-to-pdf') {
-                // Check for various HEIF/HEIC MIME types
-                if (mimeType.includes('heif') || mimeType.includes('heic') || 
-                    mimeType.includes('image/heif') || mimeType.includes('image/heic') ||
-                    mimeType.includes('image/heif-sequence') || mimeType.includes('image/heic-sequence')) {
-                    return true;
+            if (this.currentTool === 'heif-to-pdf') {
+                // Accept actual HEIF/HEIC files
+                if ((cleanType === 'heif' || cleanType === 'heic')) {
+                    // Check for various HEIF/HEIC MIME types
+                    if (mimeType.includes('heif') || mimeType.includes('heic') || 
+                        mimeType.includes('image/heif') || mimeType.includes('image/heic') ||
+                        mimeType.includes('image/heif-sequence') || mimeType.includes('image/heic-sequence')) {
+                        return true;
+                    }
+                    
+                    // Check file extension variations
+                    if (fileName.endsWith('.heif') || fileName.endsWith('.heic') || 
+                        fileName.endsWith('.hif') || fileName.endsWith('.avci')) {
+                        return true;
+                    }
                 }
                 
-                // Check file extension variations
-                if (fileName.endsWith('.heif') || fileName.endsWith('.heic') || 
-                    fileName.endsWith('.hif') || fileName.endsWith('.avci')) {
-                    return true;
+                // Accept JPEG files that might be iOS-converted HEIF files
+                if ((cleanType === 'jpg' || cleanType === 'jpeg')) {
+                    if (mimeType.includes('jpeg') || mimeType.includes('jpg') ||
+                        fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+                        console.log('Accepting JPEG file for HEIF tool (may be iOS-converted HEIF):', fileName);
+                        return true;
+                    }
                 }
                 
                 // For iOS, sometimes files from Photos app don't have proper extensions
@@ -3150,14 +3162,23 @@ class PDFConverterPro {
 
             for (const file of this.uploadedFiles) {
                 try {
-                    // Convert HEIF to JPEG using heic2any (it handles both HEIC and HEIF)
-                    const jpegBlob = await heic2any({
-                        blob: file,
-                        toType: 'image/jpeg',
-                        quality: 0.9
-                    });
-
-                    const jpegArrayBuffer = await jpegBlob.arrayBuffer();
+                    let jpegArrayBuffer;
+                    
+                    // Check if file is already JPEG (iOS-converted) or needs HEIF conversion
+                    if (file.type === 'image/jpeg' || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
+                        console.log('Processing JPEG file (may be iOS-converted HEIF):', file.name);
+                        // File is already JPEG, use it directly
+                        jpegArrayBuffer = await file.arrayBuffer();
+                    } else {
+                        console.log('Converting HEIF file to JPEG:', file.name);
+                        // Convert HEIF to JPEG using heic2any (it handles both HEIC and HEIF)
+                        const jpegBlob = await heic2any({
+                            blob: file,
+                            toType: 'image/jpeg',
+                            quality: 0.9
+                        });
+                        jpegArrayBuffer = await jpegBlob.arrayBuffer();
+                    }
                     const jpegImage = await pdfDoc.embedJpg(jpegArrayBuffer);
 
                     // Calculate dimensions to fit the page
@@ -3197,14 +3218,23 @@ class PDFConverterPro {
             // Convert each HEIF file to individual PDF
             for (const file of this.uploadedFiles) {
                 try {
-                    // Convert HEIF to JPEG using heic2any (it handles both HEIC and HEIF)
-                    const jpegBlob = await heic2any({
-                        blob: file,
-                        toType: 'image/jpeg',
-                        quality: 0.9
-                    });
-
-                    const jpegArrayBuffer = await jpegBlob.arrayBuffer();
+                    let jpegArrayBuffer;
+                    
+                    // Check if file is already JPEG (iOS-converted) or needs HEIF conversion
+                    if (file.type === 'image/jpeg' || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
+                        console.log('Processing JPEG file (may be iOS-converted HEIF):', file.name);
+                        // File is already JPEG, use it directly
+                        jpegArrayBuffer = await file.arrayBuffer();
+                    } else {
+                        console.log('Converting HEIF file to JPEG:', file.name);
+                        // Convert HEIF to JPEG using heic2any (it handles both HEIC and HEIF)
+                        const jpegBlob = await heic2any({
+                            blob: file,
+                            toType: 'image/jpeg',
+                            quality: 0.9
+                        });
+                        jpegArrayBuffer = await jpegBlob.arrayBuffer();
+                    }
                     const pdfDoc = await PDFLib.PDFDocument.create();
                     const jpegImage = await pdfDoc.embedJpg(jpegArrayBuffer);
 
@@ -3230,7 +3260,7 @@ class PDFConverterPro {
                     const pdfBytes = await pdfDoc.save();
                     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
 
-                    const baseName = file.name.replace(/\.(heif|heic)$/i, '');
+                    const baseName = file.name.replace(/\.(heif|heic|jpg|jpeg)$/i, '');
                     const fileName = `${baseName}.pdf`;
 
                     results.push({
