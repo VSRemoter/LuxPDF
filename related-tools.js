@@ -410,6 +410,12 @@ const RELATED_TOOLS_CONFIG = {
     ],
     'heic-to-pdf': [
         {
+            name: 'HEIF to PDF',
+            url: '/heif-to-pdf.html',
+            description: 'Convert HEIF images to PDF documents',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
             name: 'JPEG to PDF',
             url: '/jpeg-to-pdf.html',
             description: 'Convert JPEG images to PDF documents',
@@ -422,10 +428,30 @@ const RELATED_TOOLS_CONFIG = {
             icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
         },
         {
-            name: 'TXT to PDF',
-            url: '/txt-to-pdf.html',
-            description: 'Convert text files to PDF documents',
-            icon: '<i class="fas fa-file-alt"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+            name: 'Merge PDF',
+            url: '/merge-pdf.html',
+            description: 'Combine multiple PDF files into one',
+            icon: '<i class="fas fa-file-pdf"></i><i class="fas fa-plus"></i><i class="fas fa-file-pdf"></i>'
+        }
+    ],
+    'heif-to-pdf': [
+        {
+            name: 'HEIC to PDF',
+            url: '/heic-to-pdf.html',
+            description: 'Convert HEIC images to PDF documents',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'JPEG to PDF',
+            url: '/jpeg-to-pdf.html',
+            description: 'Convert JPEG images to PDF documents',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'PNG to PDF',
+            url: '/png-to-pdf.html',
+            description: 'Convert PNG images to PDF documents',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
         },
         {
             name: 'Merge PDF',
