@@ -303,15 +303,10 @@ class PDFConverterPro {
                 accept: '.pdf',
                 description: 'Swap & sort PDF pages in anyway you want'
             },
-            'heic-to-pdf': {
-                title: 'HEIC to PDF Converter',
-                accept: '.heic,.heif',
-                description: 'Convert HEIC images to PDF documents'
-            },
             'heif-to-pdf': {
-                title: 'HEIF to PDF Converter',
+                title: 'HEIC/HEIF to PDF Converter',
                 accept: '.heif,.heic,.jpg,.jpeg',
-                description: 'Convert HEIF images to PDF documents'
+                description: 'Convert HEIC/HEIF images to PDF documents'
             }
         };
         return configs[toolName] || { title: 'PDF Tool', accept: '*', description: '' };
@@ -853,31 +848,16 @@ class PDFConverterPro {
                 this.setupReverseButtonListener();
                 break;
 
-            case 'heic-to-pdf':
-                optionsContainer.innerHTML = `
-                    <div class="option-group">
-                        <label>Conversion Mode</label>
-                        <select id="conversion-mode">
-                            <option value="individual">Individual PDFs (one per HEIC file)</option>
-                            <option value="combined">Merge all into single PDF</option>
-                        </select>
-                        <p style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.5rem;">
-                            Choose how you want your HEIC images converted to PDF format.
-                        </p>
-                    </div>
-                `;
-                break;
-
             case 'heif-to-pdf':
                 optionsContainer.innerHTML = `
                     <div class="option-group">
                         <label>Conversion Mode</label>
                         <select id="conversion-mode">
-                            <option value="individual">Individual PDFs (one per HEIF file)</option>
+                            <option value="individual">Individual PDFs (one per HEIC/HEIF file)</option>
                             <option value="combined">Merge all into single PDF</option>
                         </select>
                         <p style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.5rem;">
-                            Choose how you want your HEIF images converted to PDF format.
+                            Choose how you want your HEIC/HEIF images converted to PDF format.
                         </p>
                     </div>
                 `;
@@ -962,9 +942,6 @@ class PDFConverterPro {
                     break;
                 case 'sort-pages':
                     results = await this.sortPages();
-                    break;
-                case 'heic-to-pdf':
-                    results = await this.heicToPdf();
                     break;
                 case 'heif-to-pdf':
                     results = await this.heifToPdf();
@@ -3041,123 +3018,15 @@ class PDFConverterPro {
 
 
 
-    // HEIC to PDF functionality
-    async heicToPdf() {
-        const results = [];
-        const conversionMode = document.getElementById('conversion-mode')?.value || 'individual';
 
-        if (conversionMode === 'combined') {
-            // Combine all HEIC files into a single PDF
-            const pdfDoc = await PDFLib.PDFDocument.create();
 
-            for (const file of this.uploadedFiles) {
-                try {
-                    // Convert HEIC to JPEG
-                    const jpegBlob = await heic2any({
-                        blob: file,
-                        toType: 'image/jpeg',
-                        quality: 0.9
-                    });
-
-                    const jpegArrayBuffer = await jpegBlob.arrayBuffer();
-                    const jpegImage = await pdfDoc.embedJpg(jpegArrayBuffer);
-
-                    // Calculate dimensions to fit the page
-                    const page = pdfDoc.addPage();
-                    const { width: pageWidth, height: pageHeight } = page.getSize();
-                    const { width: imgWidth, height: imgHeight } = jpegImage;
-
-                    const scale = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-                    const scaledWidth = imgWidth * scale;
-                    const scaledHeight = imgHeight * scale;
-
-                    const x = (pageWidth - scaledWidth) / 2;
-                    const y = (pageHeight - scaledHeight) / 2;
-
-                    page.drawImage(jpegImage, {
-                        x,
-                        y,
-                        width: scaledWidth,
-                        height: scaledHeight
-                    });
-                } catch (error) {
-                    console.error('Error processing HEIC file:', error);
-                    throw new Error(`Failed to process ${file.name}: ${error.message}`);
-                }
-            }
-
-            const pdfBytes = await pdfDoc.save();
-            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-
-            results.push({
-                name: 'combined_heic.pdf',
-                type: 'application/pdf',
-                size: blob.size,
-                url: URL.createObjectURL(blob)
-            });
-        } else {
-            // Convert each HEIC file to individual PDF
-            for (const file of this.uploadedFiles) {
-                try {
-                    // Convert HEIC to JPEG
-                    const jpegBlob = await heic2any({
-                        blob: file,
-                        toType: 'image/jpeg',
-                        quality: 0.9
-                    });
-
-                    const jpegArrayBuffer = await jpegBlob.arrayBuffer();
-                    const pdfDoc = await PDFLib.PDFDocument.create();
-                    const jpegImage = await pdfDoc.embedJpg(jpegArrayBuffer);
-
-                    // Calculate dimensions to fit the page
-                    const page = pdfDoc.addPage();
-                    const { width: pageWidth, height: pageHeight } = page.getSize();
-                    const { width: imgWidth, height: imgHeight } = jpegImage;
-
-                    const scale = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-                    const scaledWidth = imgWidth * scale;
-                    const scaledHeight = imgHeight * scale;
-
-                    const x = (pageWidth - scaledWidth) / 2;
-                    const y = (pageHeight - scaledHeight) / 2;
-
-                    page.drawImage(jpegImage, {
-                        x,
-                        y,
-                        width: scaledWidth,
-                        height: scaledHeight
-                    });
-
-                    const pdfBytes = await pdfDoc.save();
-                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-
-                    const baseName = file.name.replace(/\.(heic|heif)$/i, '');
-                    const fileName = `${baseName}.pdf`;
-
-                    results.push({
-                        name: fileName,
-                        type: 'application/pdf',
-                        size: blob.size,
-                        url: URL.createObjectURL(blob)
-                    });
-                } catch (error) {
-                    console.error('Error converting HEIC:', error);
-                    throw new Error(`Failed to convert ${file.name}: ${error.message}`);
-                }
-            }
-        }
-
-        return results;
-    }
-
-    // HEIF to PDF functionality
+    // HEIC/HEIF to PDF functionality
     async heifToPdf() {
         const results = [];
         const conversionMode = document.getElementById('conversion-mode')?.value || 'individual';
 
         if (conversionMode === 'combined') {
-            // Combine all HEIF files into a single PDF
+            // Combine all HEIC/HEIF files into a single PDF
             const pdfDoc = await PDFLib.PDFDocument.create();
 
             for (const file of this.uploadedFiles) {
@@ -3209,13 +3078,13 @@ class PDFConverterPro {
             const blob = new Blob([pdfBytes], { type: 'application/pdf' });
 
             results.push({
-                name: 'combined_heif.pdf',
+                name: 'combined_heic_heif.pdf',
                 type: 'application/pdf',
                 size: blob.size,
                 url: URL.createObjectURL(blob)
             });
         } else {
-            // Convert each HEIF file to individual PDF
+            // Convert each HEIC/HEIF file to individual PDF
             for (const file of this.uploadedFiles) {
                 try {
                     let jpegArrayBuffer;
