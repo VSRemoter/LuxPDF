@@ -310,7 +310,7 @@ class PDFConverterPro {
             },
             'heif-to-pdf': {
                 title: 'HEIF to PDF Converter',
-                accept: '.heif',
+                accept: '.heif,.heic',
                 description: 'Convert HEIF images to PDF documents'
             }
         };
@@ -318,6 +318,12 @@ class PDFConverterPro {
     }
 
     handleFileSelect(files) {
+        console.log('handleFileSelect called with files:', Array.from(files).map(f => ({
+            name: f.name,
+            type: f.type,
+            size: f.size
+        })));
+        
         Array.from(files).forEach(file => {
             if (this.validateFile(file)) {
                 // Check if file already exists to prevent duplicates
@@ -351,13 +357,54 @@ class PDFConverterPro {
         if (acceptedTypes.includes('*')) return true;
 
         const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-        const isValid = acceptedTypes.some(type =>
-            type === fileExtension ||
-            file.type.includes(type.replace('.', ''))
-        );
+        const fileName = file.name.toLowerCase();
+        const mimeType = file.type.toLowerCase();
+
+        // Enhanced validation for HEIF/HEIC files (especially for mobile devices)
+        const isValid = acceptedTypes.some(type => {
+            const cleanType = type.replace('.', '').toLowerCase();
+            
+            // Check file extension
+            if (type === fileExtension) return true;
+            
+            // Check MIME type
+            if (file.type.includes(cleanType)) return true;
+            
+            // Special handling for HEIF/HEIC files on mobile devices
+            if ((cleanType === 'heif' || cleanType === 'heic') && this.currentTool === 'heif-to-pdf') {
+                // Check for various HEIF/HEIC MIME types
+                if (mimeType.includes('heif') || mimeType.includes('heic') || 
+                    mimeType.includes('image/heif') || mimeType.includes('image/heic') ||
+                    mimeType.includes('image/heif-sequence') || mimeType.includes('image/heic-sequence')) {
+                    return true;
+                }
+                
+                // Check file extension variations
+                if (fileName.endsWith('.heif') || fileName.endsWith('.heic') || 
+                    fileName.endsWith('.hif') || fileName.endsWith('.avci')) {
+                    return true;
+                }
+                
+                // For iOS, sometimes files from Photos app don't have proper extensions
+                // but have specific MIME types or are known to be HEIF/HEIC
+                if (mimeType === '' && fileName.includes('image')) {
+                    console.log('Allowing file with empty MIME type that might be HEIF/HEIC from iOS Photos');
+                    return true;
+                }
+            }
+            
+            return false;
+        });
 
         if (!isValid) {
-            this.showError(`File type not supported for this tool: ${file.name}`);
+            console.log('File validation failed:', {
+                fileName: file.name,
+                mimeType: file.type,
+                fileExtension: fileExtension,
+                acceptedTypes: acceptedTypes,
+                currentTool: this.currentTool
+            });
+            this.showError(`File type not supported for this tool: ${file.name} (${file.type || 'unknown type'})`);
             return false;
         }
 
@@ -3183,7 +3230,7 @@ class PDFConverterPro {
                     const pdfBytes = await pdfDoc.save();
                     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
 
-                    const baseName = file.name.replace(/\.heif$/i, '');
+                    const baseName = file.name.replace(/\.(heif|heic)$/i, '');
                     const fileName = `${baseName}.pdf`;
 
                     results.push({
