@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Compare two PDFs side‑by‑side with visual diff highlights. Free, private, 100% client‑side — no uploads, no registration.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compare PDFs — Side‑by‑Side Visual Diff (Free, Private) | LuxPDF</title>
+    <link rel="stylesheet" href="styles.css?v=1.1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <script defer data-domain="luxpdf.com" src="https://plausible.io/js/script.file-downloads.hash.outbound-links.js"></script>
+    <script>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+</head>
+
+<body>
+<header class="header">
+    <div class="container">
+        <h1 class="logo">
+            <a href="/" style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-crown"></i>
+                LuxPDF
+            </a>
+        </h1>
+        <nav class="nav">
+            <a href="/#tools" class="nav-link">Tools</a>
+            <a href="/blog.html" class="nav-link">Blog</a>
+            <a href="/support.html" class="nav-link">Support Us</a>
+            <a href="/#about" class="nav-link">About</a>
+            <a href="/#comparison" class="nav-link">Comparison</a>
+            <a href="/#faq" class="nav-link">FAQ</a>
+        </nav>
+    </div>
+</header>
+
+<main class="main">
+    <section class="hero">
+        <div class="container">
+            <h2 class="hero-title">Compare PDFs</h2>
+            <p class="hero-subtitle">Upload exactly two PDF files to see their pages side-by-side with visual difference highlighting.</p>
+            <div class="privacy-badge">
+                <i class="fas fa-shield-alt"></i> 100% Private - Zero File Data Collection - No Server Uploads Ever
+            </div>
+            <div class="encryption-line"></div>
+        </div>
+    </section>
+
+    <section class="tools-section">
+        <div class="container">
+            <div class="tool-interface">
+                <!-- File Upload Area -->
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-content">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <h4>Drag & Drop PDF Files Here</h4>
+                        <p>Upload exactly two PDF files or click to select</p>
+                        <input type="file" id="file-input" multiple accept=".pdf">
+                    </div>
+                </div>
+
+                <!-- File List -->
+                <div class="file-list" id="file-list"></div>
+
+                <!-- Tool Options -->
+                <div class="tool-options" id="tool-options">
+                    <div class="option-group">
+                        <p>Click "Process Files" after selecting two PDFs. We'll render pages side-by-side and highlight differences.</p>
+                    </div>
+                </div>
+
+                <!-- Process Button -->
+                <div class="process-section">
+                    <button class="process-btn" id="process-btn" disabled>
+                        <i class="fas fa-cog"></i>
+                        Process Files
+                    </button>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress-container" id="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="results-section" id="results-section" style="display: none;">
+                    <h4>Comparison Result</h4>
+                    <div class="results-list" id="results-list"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content-section">
+        <div class="container">
+            <!-- What is LuxPDF -->
+            <div class="content-block">
+                <h3>What is LuxPDF?</h3>
+                <p><strong>LuxPDF is an open-source, privacy-focused, and completely free suite of online PDF tools. We believe that your documents are your business, and we are committed to providing powerful, reliable tools without ever collecting your file data. Our platform runs entirely in your browser, ensuring that your files never leave your computer. With no ads, no registration, and no usage limits, LuxPDF offers a seamless and secure experience for all your PDF needs.</strong></p>
+            </div>
+
+            <!-- Why use our tool -->
+            <div class="content-block">
+                <h3>Why use our Compare PDFs tool?</h3>
+                <ul>
+                    <li><strong>Visual Differences:</strong> See pages side-by-side with clear diff overlays to spot changes quickly.</li>
+                    <li><strong>100% Private:</strong> Runs entirely in your browser. Files never leave your device.</li>
+                    <li><strong>Open Source & Free:</strong> No registration, ads, or limits.</li>
+                    <li><strong>Works Offline (after load):</strong> Once assets load, you can continue comparing without a network connection.</li>
+                </ul>
+            </div>
+
+            <!-- How to use -->
+            <div class="content-block">
+                <h3>How to use the Compare PDFs tool</h3>
+                <ol>
+                    <li><strong>Step 1:</strong> Drag and drop <em>exactly two</em> PDF files into the upload area, or click to select them.</li>
+                    <li><strong>Step 2:</strong> Click the "Process Files" button to render both PDFs.</li>
+                    <li><strong>Step 3:</strong> Review the side-by-side pages with difference highlights.</li>
+                </ol>
+            </div>
+
+            <!-- FAQ -->
+            <div class="content-block">
+                <h3>Frequently Asked Questions (FAQ)</h3>
+                <div class="faq-item">
+                    <div class="faq-question"><span>Do you upload my PDFs to a server?</span></div>
+                    <div class="faq-answer">
+                        <p>No. All processing happens locally in your browser. Your files never leave your device.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question"><span>What differences are highlighted?</span></div>
+                    <div class="faq-answer">
+                        <p>The tool renders both pages and computes a pixel diff overlay to visually highlight changes in layout, text rendering, and images.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question"><span>Can I compare more than two PDFs?</span></div>
+                    <div class="faq-answer">
+                        <p>No, this tool is designed for two-file comparisons only. Please upload exactly two PDFs to enable processing.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="related-tools-section">
+        <div class="container">
+            <h3 class="section-title">See Our Related Tools</h3>
+            <div class="related-tools-grid">
+                <a href="/merge-pdf.html" class="related-tool-card">
+                    <div class="related-tool-icon">
+                        <i class="fas fa-file-pdf"></i>
+                        <i class="fas fa-plus"></i>
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <h4>Merge PDF</h4>
+                    <p>Combine multiple PDF files into one</p>
+                </a>
+                <a href="/flatten-pdf.html" class="related-tool-card">
+                    <div class="related-tool-icon">
+                        <i class="fas fa-layer-group"></i>
+                        <i class="fas fa-arrow-right"></i>
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <h4>Flatten PDF</h4>
+                    <p>Embed form fields and annotations into page content</p>
+                </a>
+                <a href="/add-password.html" class="related-tool-card">
+                    <div class="related-tool-icon">
+                        <i class="fas fa-file-pdf"></i>
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h4>Encrypt PDF</h4>
+                    <p>Encrypt your PDFs with a password</p>
+                </a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-content">
+            <div class="footer-logo">
+                <i class="fas fa-crown"></i>
+                <span>LuxPDF</span>
+            </div>
+            <div class="footer-privacy">
+                <div class="privacy-badge">
+                    <i class="fas fa-shield-alt"></i> 100% Private - Zero File Data Collection
+                </div>
+            </div>
+            <div class="footer-links">
+                <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+                <a href="/terms.html" class="footer-link">Terms of Service</a>
+            </div>
+            <div class="footer-social">
+                <a href="https://github.com/VSRemoter/LuxPDF" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                    <i class="fab fa-github"></i>
+                </a>
+                <a href="https://x.com/LuxPDF" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)">
+                    <i class="fab fa-twitter"></i>
+                </a>
+            </div>
+            <div class="copyright">
+                © 2025 LuxPDF. All rights reserved.
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<!-- Main App -->
+<script src="script.js"></script>
+<script>
+    // Configure PDF.js worker
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        window.pdfConverter = new PDFConverterPro();
+        window.pdfConverter.currentTool = 'compare-pdfs';
+        window.pdfConverter.setupToolSpecificPage();
+    });
+</script>
+</body>
+
+</html>
