@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Convert WEBP to PDF in your browser — open‑source, private, and free. 100% client‑side: no uploads, no registration, unlimited use.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WEBP to PDF | Open-source, Private, Free, Unlimited, No Registration Needed</title>
+    <link rel="stylesheet" href="styles.css?v=1.1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Favicon and App Icons -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <script defer data-domain="luxpdf.com" src="https://plausible.io/js/script.file-downloads.hash.outbound-links.js"></script>
+    <script>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">
+                <a href="/" style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-crown"></i>
+                    LuxPDF
+                </a>
+            </h1>
+            <nav class="nav">
+                <a href="/#tools" class="nav-link">Tools</a>
+                <a href="/support.html" class="nav-link">Support Us</a>
+                <a href="/#about" class="nav-link">About</a>
+                <a href="/#comparison" class="nav-link">Comparison</a>
+                <a href="/#faq" class="nav-link">FAQ</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="hero">
+            <div class="container">
+                <h2 class="hero-title">WEBP to PDF Converter</h2>
+                <p class="hero-subtitle">LuxPDF is an Open-source, Privacy-Focused Alternative to ILovePDF, PDFCandy, & FreeConvert. Convert WEBP to PDF for Free. No Registration. Unlimited Usage. No File Data Collection Ever.</p>
+                <div class="privacy-badge">
+                    <i class="fas fa-shield-alt"></i> 100% Private - Zero File Data Collection - No Server Uploads Ever
+                </div>
+                <div class="encryption-line"></div>
+            </div>
+        </section>
+
+        <section class="tools-section">
+            <div class="container">
+                <div class="tool-interface">
+                    <!-- File Upload Area -->
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <h4>Drag & Drop WEBP Files Here</h4>
+                            <p>or click to select files</p>
+                            <input type="file" id="file-input" multiple accept=".webp">
+                        </div>
+                    </div>
+
+                    <!-- File List -->
+                    <div class="file-list" id="file-list"></div>
+
+                    <!-- Tool Options -->
+                    <div class="tool-options" id="tool-options">
+                        <div class="option-group">
+                            <label>Conversion Mode</label>
+                            <select id="conversion-mode">
+                                <option value="combined">Merge all images into single PDF</option>
+                                <option value="individual">Individual PDFs (ZIP + Individual files)</option>
+                            </select>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                Choose how you want your images converted to PDF format.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Process Button -->
+                    <div class="process-section">
+                        <button class="process-btn" id="process-btn" disabled>
+                            <i class="fas fa-cog"></i>
+                            Process Files
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-container" id="progress-container" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">Processing...</div>
+                    </div>
+
+                    <!-- Results -->
+                    <div class="results-section" id="results-section" style="display: none;">
+                        <h4>Download Results</h4>
+                        <div class="results-list" id="results-list"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="container">
+                <div class="content-block">
+                    <h3>What is LuxPDF?</h3>
+                    <p><strong>LuxPDF is an open-source, privacy-focused, and completely free suite of online PDF tools. We believe that your documents are your business, and we are committed to providing powerful, reliable tools without ever collecting your file data. Our platform runs entirely in your browser, ensuring that your files never leave your computer. With no ads, no registration, and no usage limits, LuxPDF offers a seamless and secure experience for all your PDF needs.</strong></p>
+                </div>
+
+                <div class="content-block">
+                    <h3>Why use our WEBP to PDF tool?</h3>
+                    <ul>
+                        <li><strong>Completely Free & Unlimited:</strong> Convert as many WEBP images to PDF as you need, without any cost or restrictions.</li>
+                        <li><strong>Privacy First:</strong> Your files are processed directly in your browser. They are never uploaded to our servers, guaranteeing 100% privacy.</li>
+                        <li><strong>Open Source:</strong> Our code is publicly available, so you can verify our privacy claims and even contribute to the project.</li>
+                        <li><strong>High Quality:</strong> Images are embedded without unnecessary recompression for excellent fidelity.</li>
+                        <li><strong>No Registration Required:</strong> Use our tools instantly without the need to create an account.</li>
+                        <li><strong>Flexible Conversion:</strong> Merge multiple WEBPs into a single PDF or convert each image into a separate PDF file.</li>
+                    </ul>
+                </div>
+
+                <div class="content-block">
+                    <h3>How to use the WEBP to PDF tool:</h3>
+                    <ol>
+                        <li><strong>Step 1:</strong> Drag and drop your WEBP files onto the upload area, or click to select them from your device.</li>
+                        <li><strong>Step 2:</strong> Choose your conversion mode: merge all images into a single PDF or create individual PDFs.</li>
+                        <li><strong>Step 3:</strong> Click the "Process Files" button to start the conversion.</li>
+                        <li><strong>Step 4:</strong> Once processed, download your new PDF(s) from the results section.</li>
+                    </ol>
+                </div>
+
+                <div class="content-block">
+                    <h3>Frequently Asked Questions (FAQ)</h3>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Is it safe to convert my WEBP files here?</span></div>
+                        <div class="faq-answer">
+                            <p>Absolutely. All processing happens in your browser, so your files never leave your device. We do not upload or store any of your documents, ensuring complete privacy.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Will my WEBP images lose quality during the conversion?</span></div>
+                        <div class="faq-answer">
+                            <p>No, our tool is designed to embed your images into the PDF without unnecessary recompression, preserving excellent visual quality.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Can I combine multiple WEBP images into a single PDF?</span></div>
+                        <div class="faq-answer">
+                            <p>Yes, simply select the "Merge all images into single PDF" option before processing your files. You can also reorder the images by dragging them in the file list.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="related-tools-section">
+            <div class="container">
+                <h3 class="section-title">See Our Related Tools</h3>
+                <div class="related-tools-grid">
+                    <a href="/png-to-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-image"></i>
+                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4>PNG to PDF</h4>
+                        <p>Convert PNG images to PDF documents</p>
+                    </a>
+                    <a href="/jpeg-to-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-image"></i>
+                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4>JPEG to PDF</h4>
+                        <p>Convert JPEG images to PDF documents</p>
+                    </a>
+                    <a href="/pdf-to-png.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-pdf"></i>
+                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-file-image"></i>
+                        </div>
+                        <h4>PDF to PNG</h4>
+                        <p>Convert PDF pages to high-quality PNG images</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-crown"></i>
+                    <span>LuxPDF</span>
+                </div>
+                <div class="footer-privacy">
+                    <div class="privacy-badge">
+                        <i class="fas fa-shield-alt"></i> 100% Private - Zero File Data Collection
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+                    <a href="/terms.html" class="footer-link">Terms of Service</a>
+                </div>
+                <div class="footer-social">
+                    <a href="https://github.com/VSRemoter/LuxPDF" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <a href="https://x.com/LuxPDF" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                </div>
+                <div class="copyright">
+                    © 2025 LuxPDF. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- PDF Processing Libraries -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/pako@2.0.4/dist/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pica/5.1.0/pica.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- Main Application Script -->
+    <script src="script.js"></script>
+    <script>
+        // PDF.js Worker Configuration
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+        // Initialize the tool page
+        document.addEventListener('DOMContentLoaded', function() {
+            window.pdfConverter = new PDFConverterPro();
+            window.pdfConverter.currentTool = 'webp-to-pdf';
+            window.pdfConverter.setupToolSpecificPage();
+        });
+    </script>
+</body>
+</html>

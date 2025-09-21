@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test File Input Fix</title>
+    <style>
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            margin: 20px;
+        }
+        .upload-area:hover {
+            background-color: #f0f0f0;
+        }
+        .test-section {
+            margin: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test File Input Fix</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Basic File Selection</h3>
+        <div class="upload-area" id="upload-area">
+            <div class="upload-content">
+                <h4>Click to select files</h4>
+                <input type="file" id="file-input" multiple accept=".txt">
+            </div>
+        </div>
+        <div id="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 2: Simulate Server vs Local Behavior</h3>
+        <button onclick="simulateCloning()">Simulate Upload Area Cloning (Server Behavior)</button>
+        <div id="clone-result"></div>
+    </div>
+    
+    <script>
+        class TestPDFConverter {
+            constructor() {
+                this.handleFileInputChange = null;
+            }
+            
+            handleFileSelect(files) {
+                document.getElementById('result').innerHTML = 
+                    `✅ SUCCESS: Selected ${files.length} file(s): ${Array.from(files).map(f => f.name).join(', ')}`;
+            }
+            
+            bindFileInputEvents() {
+                const fileInput = document.getElementById('file-input');
+                if (fileInput) {
+                    // Remove any existing change listeners to prevent duplicates
+                    if (this.handleFileInputChange) {
+                        fileInput.removeEventListener('change', this.handleFileInputChange);
+                    }
+                    
+                    // Bind the change event with a reference we can remove later
+                    this.handleFileInputChange = (e) => {
+                        this.handleFileSelect(e.target.files);
+                    };
+                    
+                    fileInput.addEventListener('change', this.handleFileInputChange);
+                }
+            }
+            
+            setupDragAndDrop() {
+                const uploadArea = document.getElementById('upload-area');
+                if (!uploadArea) return;
+
+                // Clone and replace (this simulates the server issue)
+                const newUploadArea = uploadArea.cloneNode(true);
+                uploadArea.parentNode.replaceChild(newUploadArea, uploadArea);
+
+                // Re-add click handler for the new element
+                newUploadArea.addEventListener('click', () => {
+                    const fileInput = document.getElementById('file-input');
+                    if (fileInput) fileInput.click();
+                });
+
+                // FIXED: Ensure file input events are properly bound after cloning
+                this.bindFileInputEvents();
+            }
+        }
+        
+        const testConverter = new TestPDFConverter();
+        
+        // Initialize with proper event binding
+        testConverter.bindFileInputEvents();
+        
+        function simulateCloning() {
+            document.getElementById('clone-result').innerHTML = 'Simulating server behavior (cloning upload area)...';
+            
+            // This simulates what happens on the server
+            testConverter.setupDragAndDrop();
+            
+            setTimeout(() => {
+                document.getElementById('clone-result').innerHTML = 
+                    '✅ Upload area cloned and events re-bound. Try clicking the upload area above - it should work on first click now!';
+            }, 100);
+        }
+    </script>
+</body>
+</html>

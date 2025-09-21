@@ -1,0 +1,22 @@
+{
+    "name": "LuxPDF - Free PDF Tools",
+    "short_name": "LuxPDF",
+    "description": "Free, private, and unlimited PDF conversion and modification tools. Convert, merge, split, and compress PDFs with complete privacy.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#140c0c",
+    "theme_color": "#ba453c",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/favicon.ico",
+            "sizes": "32x32",
+            "type": "image/x-icon"
+        }
+    ]
+}

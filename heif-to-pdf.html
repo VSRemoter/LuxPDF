@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description"
+        content="Convert HEIC/HEIF to PDF in your browser — open‑source, private, and free. 100% client‑side: no uploads, no registration, unlimited use. No data collection ever.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEIC/HEIF to PDF | Open-source, Private, Free, Unlimited, No Registration Needed</title>
+    <link rel="stylesheet" href="styles.css?v=1.1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- Favicon and App Icons -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <script defer data-domain="luxpdf.com"
+        src="https://plausible.io/js/script.file-downloads.hash.outbound-links.js"></script>
+    <script>window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">
+                <a href="/"
+                    style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-crown"></i>
+                    LuxPDF
+                </a>
+            </h1>
+            <nav class="nav">
+                <a href="/#tools" class="nav-link">Tools</a>
+                <a href="/support.html" class="nav-link">Support Us</a>
+                <a href="/#about" class="nav-link">About</a>
+                <a href="/#comparison" class="nav-link">Comparison</a>
+                <a href="/#faq" class="nav-link">FAQ</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="hero">
+            <div class="container">
+                <h2 class="hero-title">HEIC/HEIF to PDF Converter</h2>
+                <p class="hero-subtitle">LuxPDF is an Open-source, Privacy-Focused Alternative to ILovePDF, PDFCandy, &
+                    FreeConvert. Convert HEIC/HEIF Images to PDF for Free. No Registration. Unlimited Usage. No File Data
+                    Collection Ever.</p>
+                <div class="privacy-badge">
+                    <i class="fas fa-shield-alt"></i> 100% Private - Zero File Data Collection - No Server Uploads Ever
+                </div>
+                <div class="encryption-line"></div>
+            </div>
+        </section>
+
+        <section class="tools-section">
+            <div class="container">
+                <div class="tool-interface">
+                    <!-- iOS Notice -->
+                    <div class="ios-notice" id="ios-notice" style="display: none;">
+                        <div style="background: rgba(186, 69, 60, 0.1); border: 1px solid var(--accent-color); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-color);">
+                                <i class="fas fa-mobile-alt"></i> iOS Device Detected
+                            </h4>
+                            <p style="margin: 0; font-size: 0.9rem;">
+                                Click "Browse" below to select photos from your Photos library or Files app. This tool will process both original HEIF files and iOS-converted JPEG files correctly.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- File Upload Area -->
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <h4>Drag & Drop HEIF/HEIC Files Here</h4>
+                            <p>or click to browse and select files</p>
+                            <input type="file" id="file-input" multiple accept=".heif,.heic,image/heif,image/heic,image/heif-sequence,image/heic-sequence">
+                        </div>
+                    </div>
+
+                    <!-- File List -->
+                    <div class="file-list" id="file-list"></div>
+
+                    <!-- Tool Options -->
+                    <div class="tool-options" id="tool-options"></div>
+
+                    <!-- Process Button -->
+                    <div class="process-section">
+                        <button class="process-btn" id="process-btn" disabled>
+                            <i class="fas fa-cog"></i>
+                            Process Files
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-container" id="progress-container" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">Processing...</div>
+                    </div>
+
+                    <!-- Results -->
+                    <div class="results-section" id="results-section" style="display: none;">
+                        <h4>Download Results</h4>
+                        <div class="results-list" id="results-list"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="container">
+                <!-- What is LuxPDF -->
+                <div class="content-block">
+                    <h3>What is LuxPDF?</h3>
+                    <p><strong>LuxPDF is an open-source, privacy-focused, and completely free suite of online PDF tools.
+                            We believe that your documents are your business, and we are committed to providing
+                            powerful, reliable tools without ever collecting your file data. Our platform runs entirely
+                            in your browser, ensuring that your files never leave your computer. With no ads, no
+                            registration, and no usage limits, LuxPDF offers a seamless and secure experience for all
+                            your PDF needs.</strong></p>
+                </div>
+
+                <!-- Why use our tool -->
+                <div class="content-block">
+                    <h3>Why use our HEIC/HEIF to PDF tool?</h3>
+                    <ul>
+                        <li><strong>Completely Free & Unlimited:</strong> Convert as many HEIC/HEIF files to PDF as you need,
+                            without any cost or restrictions.</li>
+                        <li><strong>Privacy First:</strong> Your HEIC/HEIF files are processed directly in your browser. They
+                            are never uploaded to our servers, guaranteeing 100% privacy.</li>
+                        <li><strong>Open Source:</strong> Our code is publicly available, so you can verify our privacy
+                            claims and even contribute to the project.</li>
+                        <li><strong>High Quality Conversion:</strong> Maintains the original image quality while converting 
+                            your HEIC/HEIF images to PDF format.</li>
+                        <li><strong>No Registration Required:</strong> Use our tools instantly without the need to
+                            create an account or provide any personal information.</li>
+                        <li><strong>Batch Conversion:</strong> Convert multiple HEIC/HEIF files into PDFs in a
+                            single operation.</li>
+                    </ul>
+                </div>
+
+                <!-- How to use -->
+                <div class="content-block">
+                    <h3>How to use the HEIC/HEIF to PDF tool:</h3>
+                    <ol>
+                        <li><strong>Step 1:</strong> Drag and drop your .heic or .heif files onto the upload area, or click to
+                            browse and select them from your device. <em>On iOS: Choose "Photo Library" when prompted to select from your photos.</em></li>
+                        <li><strong>Step 2:</strong> Choose your conversion options (individual PDFs or combined into one).</li>
+                        <li><strong>Step 3:</strong> Click the "Process Files" button to start the conversion.</li>
+                        <li><strong>Step 4:</strong> Once processed, download your new PDF files from the results
+                            section.</li>
+                    </ol>
+                </div>
+
+                <!-- FAQ -->
+                <div class="content-block">
+                    <h3>Frequently Asked Questions (FAQ)</h3>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>What are HEIC and HEIF formats?</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>HEIC (High Efficiency Image Container) and HEIF (High Efficiency Image Format) are Apple's modern image formats that provide better 
+                               compression than JPEG while maintaining higher quality. HEIC is the container format while HEIF is the underlying format. 
+                               They're the default formats for photos taken on newer iPhones and iPads.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>Can I convert multiple HEIC/HEIF files into a single PDF?</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Yes! You can choose to either convert each HEIC/HEIF file into its own separate PDF document, 
+                               or combine all images into a single PDF with each image on its own page.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>Will the image quality be preserved?</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Yes, our tool maintains the original image quality during conversion. The HEIC/HEIF images are 
+                               converted to high-quality format before being embedded in the PDF.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>Can I use this tool on my iPhone or iPad?</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Yes! This tool works on iOS devices. When selecting photos from your Photos app, the tool will 
+                               automatically detect and convert HEIF/HEIC images. If you encounter any issues, try selecting 
+                               photos directly from the Photos app rather than Files app.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>Is it safe to convert my personal photos here?</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Absolutely. The entire conversion process happens in your browser. Your photos are never sent to
+                                or stored on our servers, ensuring your personal images remain completely private and secure.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Related Tools Section -->
+        <section class="related-tools-section">
+            <div class="container">
+                <h3 class="section-title">See Our Related Tools</h3>
+                <div class="related-tools-grid">
+                    <a href="/jpeg-to-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-image"></i>
+                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4>JPEG to PDF</h4>
+                        <p>Convert JPEG images to PDF documents</p>
+                    </a>
+                    <a href="/png-to-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-image"></i>
+                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4>PNG to PDF</h4>
+                        <p>Convert PNG images to PDF documents</p>
+                    </a>
+                    <a href="/merge-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-pdf"></i>
+                            <i class="fas fa-plus"></i>
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4>Merge PDF</h4>
+                        <p>Combine multiple PDF files into one</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-crown"></i>
+                    <span>LuxPDF</span>
+                </div>
+                <div class="footer-privacy">
+                    <div class="privacy-badge">
+                        <i class="fas fa-shield-alt"></i> 100% Private - Zero File Data Collection
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+                    <a href="/terms.html" class="footer-link">Terms of Service</a>
+                </div>
+                <div class="footer-social">
+                    <a href="https://github.com/VSRemoter/LuxPDF" class="social-link" target="_blank"
+                        rel="noopener noreferrer" aria-label="GitHub">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <a href="https://x.com/LuxPDF" class="social-link" target="_blank" rel="noopener noreferrer"
+                        aria-label="X (Twitter)">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                </div>
+                <div class="copyright">
+                    © 2025 LuxPDF. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- PDF Processing Libraries -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/pako@2.0.4/dist/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pica/5.1.0/pica.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- HEIF decoding library -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+
+    <!-- Main Application Script -->
+    <script src="script.js"></script>
+
+    <script>
+        // PDF.js Worker Configuration
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        // Initialize the tool page
+        document.addEventListener('DOMContentLoaded', function () {
+            window.pdfConverter = new PDFConverterPro();
+            window.pdfConverter.currentTool = 'heif-to-pdf';
+            window.pdfConverter.setupToolSpecificPage();
+            
+            // iOS-specific handling to preserve HEIF format
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                console.log('iOS device detected, applying HEIF preservation settings');
+                
+                // Show iOS notice
+                const iosNotice = document.getElementById('ios-notice');
+                if (iosNotice) {
+                    iosNotice.style.display = 'block';
+                }
+                
+                const fileInput = document.getElementById('file-input');
+                if (fileInput) {
+                    // Ensure proper file selection on iOS
+                    fileInput.setAttribute('accept', '.heif,.heic,image/heif,image/heic,image/jpeg,image/jpg');
+                    
+                    // Remove any attributes that might force camera
+                    fileInput.removeAttribute('capture');
+                    
+                    // Add change event listener to detect format conversion
+                    fileInput.addEventListener('change', function(e) {
+                        const files = Array.from(e.target.files);
+                        files.forEach(file => {
+                            console.log('iOS file selected:', {
+                                name: file.name,
+                                type: file.type,
+                                size: file.size,
+                                lastModified: file.lastModified
+                            });
+                            
+                            // Check if iOS converted HEIF to JPEG
+                            if (file.type === 'image/jpeg' && !file.name.toLowerCase().includes('jpeg') && !file.name.toLowerCase().includes('jpg')) {
+                                console.warn('iOS may have converted HEIF to JPEG:', file.name);
+                                // Show user notification about potential conversion
+                                if (window.pdfConverter && window.pdfConverter.showNotification) {
+                                    window.pdfConverter.showNotification(
+                                        '📱 iOS detected: If your photo was converted to JPEG, the tool will still process it correctly.',
+                                        'info'
+                                    );
+                                }
+                            }
+                        });
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
