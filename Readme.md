@@ -8,7 +8,7 @@ We believe that simple tools like PDF WebApps should have been open-sourced, pri
 
 ## Features
 
-LuxPDF offers 25+ tools to help you manage your PDF files:
+LuxPDF offers 30+ tools to help you manage your PDF files:
 
 **Conversion Tools**
 
@@ -44,7 +44,7 @@ LuxPDF offers 25+ tools to help you manage your PDF files:
 *   **Sort Pages:** Reorder the pages in a PDF file.
 *   **Rotate PDF:** Rotate the pages in a PDF file.
 *   **Flatten PDF:** Permanently embed form fields and annotations into page content.
-*   **Compare PDF:** Compare two PDF files to see the differences.
+*   **Compare PDFs:** Compare two PDF files to see the differences.
 
 **Privacy Tools:**
 
@@ -57,9 +57,63 @@ LuxPDF offers 25+ tools to help you manage your PDF files:
 
 Using our site is easy. Simply visit our website and select the tool you want to use. Then, upload your file and follow the on-screen instructions. All processing is done in your browser, so your files never leave your computer.
 
+## Quick Links
+
+- Website: https://luxpdf.com
+- Blog: https://luxpdf.com/blog.html
+- Changelog: https://luxpdf.com/changelog.html
+- Privacy Policy: https://luxpdf.com/privacy.html
+- Terms of Service: https://luxpdf.com/terms.html
+- Support Us: https://luxpdf.com/support.html
+- GitHub: https://github.com/VSRemoter/LuxPDF
+
+## Run Locally (no build required)
+
+This is a static web app. You can run it locally with any static server.
+
+Option A (Python 3):
+
+```bash
+cd LuxPDF-9-16
+python3 -m http.server 8080
+```
+
+Then open http://localhost:8080 in your browser.
+
+Option B (Node):
+
+```bash
+npx serve . -l 8080
+```
+
+## Tech Stack & Libraries
+
+- HTML, CSS, JavaScript (no framework required)
+- Core libraries:
+  - pdf-lib (in-browser PDF creation/editing)
+  - Mozilla PDF.js (rendering PDFs for previews/thumbnails)
+  - JSZip (ZIP packaging for multi-file downloads)
+  - Pica (high-quality image resizing)
+  - FileReader (vendor) & PPTXJS (vendor) for PPTX preprocessing
+
+## Privacy by Design
+
+- 100% client-side processing; your files never leave your device.
+- No ads, no account required, unlimited usage.
+- Minimal, privacy-respecting analytics via Plausible; see Privacy Policy for details.
+
 ## Contributing
 
-We welcome contributions from the community! Whether you're a developer, a designer, or just someone who is passionate about privacy, we'd love to have your help. If you have an idea, found a bug, or want to contribute in any other way, please reach out to us at admin@luxpdf.com
+We welcome contributions from the community! Whether you're a developer, a designer, or just someone who is passionate about privacy, we'd love to have your help.
+
+Basic flow:
+
+1. Fork the repo and create a feature branch.
+2. Make changes (keep code simple and fast; avoid server-side dependencies).
+3. Open a Pull Request describing your change and which tools/pages it affects.
+4. For UI changes, include before/after screenshots if possible.
+
+Questions or ideas? Email us: admin@luxpdf.com
 
 ## License
 
