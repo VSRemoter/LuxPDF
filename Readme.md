@@ -67,24 +67,6 @@ Using our site is easy. Simply visit our website and select the tool you want to
 - Support Us: https://luxpdf.com/support.html
 - GitHub: https://github.com/VSRemoter/LuxPDF
 
-## Run Locally (no build required)
-
-This is a static web app. You can run it locally with any static server.
-
-Option A (Python 3):
-
-```bash
-cd LuxPDF-9-16
-python3 -m http.server 8080
-```
-
-Then open http://localhost:8080 in your browser.
-
-Option B (Node):
-
-```bash
-npx serve . -l 8080
-```
 
 ## Tech Stack & Libraries
 

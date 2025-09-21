@@ -2045,10 +2045,7 @@ fication System */
 
 /* Hide hero section on tool pages immediately (no flicker) */
 /* If the page has a tools-section or an upload area, don't render the hero */
-.main:has(.tools-section) .hero,
-.main:has(#upload-area) .hero {
-    display: none !important;
-}
+/* Note: Hero is now removed directly from individual tool pages to avoid flicker. */
 
 @media (max-width: 600px) {
     .tool-inline-title {
