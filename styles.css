@@ -2043,6 +2043,13 @@ fication System */
     color: #ffffff;
 }
 
+/* Hide hero section on tool pages immediately (no flicker) */
+/* If the page has a tools-section or an upload area, don't render the hero */
+.main:has(.tools-section) .hero,
+.main:has(#upload-area) .hero {
+    display: none !important;
+}
+
 @media (max-width: 600px) {
     .tool-inline-title {
         font-size: 1.5rem;
