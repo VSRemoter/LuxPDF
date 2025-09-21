@@ -50,12 +50,28 @@ class PDFConverterPro {
             const hero = document.querySelector('section.hero');
             if (hero) hero.style.display = 'none';
 
+            // Ensure an inline title exists and is placed correctly
+            let inlineTitle = document.querySelector('.tool-inline-title');
+            if (!inlineTitle) {
+                inlineTitle = document.createElement('div');
+                inlineTitle.className = 'tool-inline-title';
+            }
+            inlineTitle.textContent = toolConfig.title || 'Tool';
+
             const uploadArea = document.getElementById('upload-area');
-            if (uploadArea && !document.querySelector('.tool-inline-title')) {
-                const titleDiv = document.createElement('div');
-                titleDiv.className = 'tool-inline-title';
-                titleDiv.textContent = toolConfig.title || 'Tool';
-                uploadArea.parentNode.insertBefore(titleDiv, uploadArea);
+            const toolInterface = document.querySelector('.tool-interface');
+            const toolsContainer = document.querySelector('.tools-section .container') || document.querySelector('.tools-section');
+
+            if (uploadArea && uploadArea.parentNode && inlineTitle.parentNode !== uploadArea.parentNode) {
+                uploadArea.parentNode.insertBefore(inlineTitle, uploadArea);
+            } else if (toolInterface && inlineTitle.parentNode !== toolInterface) {
+                toolInterface.insertBefore(inlineTitle, toolInterface.firstChild);
+            } else if (toolsContainer && inlineTitle.parentNode !== toolsContainer) {
+                toolsContainer.insertBefore(inlineTitle, toolsContainer.firstChild);
+            } else if (!inlineTitle.parentNode) {
+                // Fallback: append to main
+                const main = document.querySelector('main, .main') || document.body;
+                main.prepend(inlineTitle);
             }
         } catch (_) { /* noop */ }
 

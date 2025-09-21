@@ -2040,7 +2040,7 @@ fication System */
     font-size: 1.7rem;
     font-weight: 800;
     text-align: center;
-    color: #ffffff;
+    color: var(--text-primary);
 }
 
 /* Hide hero section on tool pages immediately (no flicker) */
