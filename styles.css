@@ -346,6 +346,21 @@ ols Section */
     background: rgba(239, 68, 68, 0.08);
     vertical-align: middle;
 }
+
+.tools-table .tool-link[data-tool="markdown-to-pdf"]::after,
+.tools-table .tool-link[data-tool="markdown-text-to-pdf"]::after {
+    content: "New!";
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.7rem;
+    line-height: 1;
+    border-radius: 999px;
+    border: 1px solid #10AC84;
+    color: #10AC84;
+    background: rgba(16, 172, 132, 0.08);
+    vertical-align: middle;
+}
 .tool-card {
     background: var(--background-secondary);
     border-radius: var(--border-radius);

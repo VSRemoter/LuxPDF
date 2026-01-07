@@ -479,6 +479,46 @@ const RELATED_TOOLS_CONFIG = {
             description: 'Reduce PDF file size while maintaining quality',
             icon: '<i class="fas fa-file-pdf"></i><i class="fas fa-compress-arrows-alt"></i>'
         }
+    ],
+    'markdown-to-pdf': [
+        {
+            name: 'MD-Text to PDF',
+            url: '/markdown-text-to-pdf.html',
+            description: 'Live Markdown editor with real-time PDF preview',
+            icon: '<i class="fas fa-edit"></i>'
+        },
+        {
+            name: 'TXT to PDF',
+            url: '/txt-to-pdf.html',
+            description: 'Convert text files to PDF documents',
+            icon: '<i class="fas fa-file-alt"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'Merge PDF',
+            url: '/merge-pdf.html',
+            description: 'Combine multiple PDF files into one',
+            icon: '<i class="fas fa-file-pdf"></i><i class="fas fa-plus"></i><i class="fas fa-file-pdf"></i>'
+        }
+    ],
+    'markdown-text-to-pdf': [
+        {
+            name: 'Markdown to PDF',
+            url: '/markdown-to-pdf.html',
+            description: 'Convert Markdown files to PDF documents',
+            icon: '<i class="fab fa-markdown"></i>'
+        },
+        {
+            name: 'TXT to PDF',
+            url: '/txt-to-pdf.html',
+            description: 'Convert text files to PDF documents',
+            icon: '<i class="fas fa-file-alt"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'Merge PDF',
+            url: '/merge-pdf.html',
+            description: 'Combine multiple PDF files into one',
+            icon: '<i class="fas fa-file-pdf"></i><i class="fas fa-plus"></i><i class="fas fa-file-pdf"></i>'
+        }
     ]
 };
 

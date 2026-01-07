@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description"
+        content="Convert Markdown text to PDF for free with our open source, privacy-focused WebApp. Live preview editor. No Registration. No Server Uploads. No File Data Collection Ever.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Text to PDF Converter - Live Editor with Preview - LuxPDF</title>
+    <link rel="stylesheet" href="styles.css?v=1.1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- Favicon and App Icons -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <!-- Markdown Enhancement Libraries -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.2.0/github-markdown.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+
+    <script defer data-domain="luxpdf.com"
+        src="https://plausible.io/js/script.file-downloads.hash.outbound-links.js"></script>
+    <script>window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+
+    <style>
+        /* Markdown Text Editor Specific Styles */
+        .editor-container {
+            display: flex;
+            gap: 0;
+            min-height: 87.5vh;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            background: var(--background-secondary, #1b1414);
+            width: 100%;
+            max-width: none;
+            margin: 0 auto;
+        }
+
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 50%;
+        }
+
+        .panel-header {
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .editor-panel .panel-header {
+            background: var(--background-tertiary, #2a1e1e);
+            color: var(--text-secondary, #b0b0a8);
+            border-bottom: 1px solid var(--border-color, #2a1e1e);
+        }
+
+        .preview-panel .panel-header {
+            background: #f8f9fa;
+            color: #555;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .panel-header i {
+            font-size: 1rem;
+        }
+
+        .markdown-input {
+            flex: 1;
+            background: var(--background-secondary, #1b1414);
+            color: var(--text-primary, #cfcdc2);
+            border: none;
+            padding: 20px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            min-height: 625px;
+        }
+
+        .markdown-input::placeholder {
+            color: var(--text-secondary, #b0b0a8);
+        }
+
+        .markdown-input::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .markdown-input::-webkit-scrollbar-track {
+            background: var(--background-primary, #140c0c);
+        }
+
+        .markdown-input::-webkit-scrollbar-thumb {
+            background: var(--background-tertiary, #2a1e1e);
+            border-radius: 4px;
+        }
+
+        .preview-panel {
+            background: #ffffff;
+            border-left: 1px solid var(--border-color, #2a1e1e);
+        }
+
+        .preview-content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            background: #ffffff;
+            min-height: 625px;
+        }
+
+        .preview-content .markdown-body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #24292f;
+            max-width: none;
+            background: transparent !important;
+        }
+
+        /* Reset all background colors to fix the black area bug */
+        .preview-content .markdown-body>* {
+            background: transparent !important;
+        }
+
+        .preview-content .markdown-body h1,
+        .preview-content .markdown-body h2,
+        .preview-content .markdown-body h3,
+        .preview-content .markdown-body h4,
+        .preview-content .markdown-body h5,
+        .preview-content .markdown-body h6,
+        .preview-content .markdown-body p,
+        .preview-content .markdown-body ul,
+        .preview-content .markdown-body ol,
+        .preview-content .markdown-body li,
+        .preview-content .markdown-body blockquote,
+        .preview-content .markdown-body table,
+        .preview-content .markdown-body tr,
+        .preview-content .markdown-body td,
+        .preview-content .markdown-body a,
+        .preview-content .markdown-body span,
+        .preview-content .markdown-body div,
+        .preview-content .markdown-body strong,
+        .preview-content .markdown-body em,
+        .preview-content .markdown-body hr {
+            background-color: transparent !important;
+            background: transparent !important;
+        }
+
+        .preview-content .markdown-body h1 {
+            font-size: 2em;
+            border-bottom: 1px solid #d0d7de;
+            padding-bottom: 0.3em;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+
+        .preview-content .markdown-body h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #d0d7de;
+            padding-bottom: 0.3em;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+
+        .preview-content .markdown-body h3 {
+            font-size: 1.25em;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+
+        .preview-content .markdown-body p {
+            margin-bottom: 16px;
+        }
+
+        .preview-content .markdown-body ul,
+        .preview-content .markdown-body ol {
+            padding-left: 2em;
+            margin-bottom: 16px;
+        }
+
+        .preview-content .markdown-body li {
+            margin-bottom: 4px;
+        }
+
+        .preview-content .markdown-body pre {
+            background: #161b22;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+        }
+
+        .preview-content .markdown-body pre code {
+            background: transparent;
+            padding: 0;
+            color: #c9d1d9;
+            font-size: 13px;
+        }
+
+        .preview-content .markdown-body code {
+            background: #f6f8fa;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-size: 85%;
+            color: #24292f;
+        }
+
+        .preview-content .markdown-body blockquote {
+            border-left: 4px solid #d0d7de;
+            padding-left: 16px;
+            color: #656d76;
+            margin: 0 0 16px 0;
+        }
+
+        .preview-content .markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .preview-content .markdown-body th,
+        .preview-content .markdown-body td {
+            border: 1px solid #d0d7de;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .preview-content .markdown-body th {
+            background: #f6f8fa;
+            font-weight: 600;
+        }
+
+        .preview-content .markdown-body a {
+            color: #0969da;
+            text-decoration: none;
+        }
+
+        .preview-content .markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        .preview-content .markdown-body hr {
+            border: none;
+            border-top: 1px solid #d0d7de;
+            margin: 24px 0;
+        }
+
+        .preview-content .markdown-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin: 8px 0;
+        }
+
+        .preview-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .preview-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .preview-content::-webkit-scrollbar-thumb {
+            background: #c0c0c0;
+            border-radius: 4px;
+        }
+
+        /* Download Button Section */
+        .download-section {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            padding: 32px 0;
+        }
+
+        .download-btn {
+            background: linear-gradient(90deg, var(--accent-color, #ba453c), var(--accent-dark, #b0b0a8));
+            color: var(--text-inverted, #140c0c);
+            border: none;
+            padding: 16px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(186, 69, 60, 0.3);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(186, 69, 60, 0.4);
+        }
+
+        .download-btn:disabled {
+            background: linear-gradient(90deg, var(--background-tertiary, #2a1e1e), var(--background-secondary, #1b1414));
+            color: rgba(200, 214, 229, 0.5);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .download-btn i {
+            font-size: 1.2rem;
+        }
+
+        /* Empty state for preview */
+        .preview-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 300px;
+            color: #999;
+            text-align: center;
+        }
+
+        .preview-empty i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            color: #ddd;
+        }
+
+        .preview-empty h4 {
+            margin: 0 0 8px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .preview-empty p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Processing overlay */
+        .processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .processing-overlay.active {
+            display: flex;
+        }
+
+        .processing-content {
+            background: var(--background-secondary, #1b1414);
+            padding: 40px 60px;
+            border-radius: 16px;
+            text-align: center;
+            color: var(--text-primary, #cfcdc2);
+            border: 1px solid var(--background-tertiary, #2a1e1e);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .processing-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--background-tertiary, #2a1e1e);
+            border-top-color: var(--accent-color, #ba453c);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .editor-container {
+                flex-direction: column;
+            }
+
+            .editor-panel {
+                min-width: 0;
+            }
+
+            .preview-panel {
+                border-left: none;
+                border-top: 1px solid var(--border-color, #2a1e1e);
+            }
+
+            .markdown-input,
+            .preview-content {
+                min-height: 437px;
+            }
+        }
+
+        /* Tool interface override for this page */
+        .tool-interface {
+            background: transparent;
+            padding: 0;
+            max-width: none;
+        }
+
+        /* Override container width for full-width editor */
+        .tools-section .container {
+            max-width: none;
+            padding: 0 40px;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">
+                <a href="/"
+                    style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-crown"></i>
+                    LuxPDF
+                </a>
+            </h1>
+            <nav class="nav">
+                <a href="/#tools" class="nav-link">Tools</a>
+                <a href="/support.html" class="nav-link">Support Us</a>
+                <a href="/#about" class="nav-link">About</a>
+                <a href="/#comparison" class="nav-link">Comparison</a>
+                <a href="/#faq" class="nav-link">FAQ</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="tools-section">
+            <div class="container">
+                <div class="tool-interface">
+                    <!-- Editor Container -->
+                    <div class="editor-container">
+                        <!-- Left: Markdown Editor -->
+                        <div class="editor-panel">
+                            <div class="panel-header">
+                                <i class="fas fa-edit"></i>
+                                Markdown Editor
+                            </div>
+                            <textarea class="markdown-input" id="markdown-input" placeholder="# Start typing your Markdown here...
+
+## Example Heading
+
+This is a paragraph with **bold** and *italic* text.
+
+- List item 1
+- List item 2
+- List item 3
+
+```javascript
+function hello() {
+    console.log('Hello, World!');
+}
+```
+
+> This is a blockquote
+
+| Column 1 | Column 2 |
+|----------|----------|
+| Data 1   | Data 2   |
+
+[Link text](https://example.com)
+
+![Image alt text](https://example.com/image.jpg)"></textarea>
+                        </div>
+
+                        <!-- Right: Live Preview -->
+                        <div class="editor-panel preview-panel">
+                            <div class="panel-header">
+                                <i class="fas fa-eye"></i>
+                                Live Preview
+                            </div>
+                            <div class="preview-content" id="preview-content">
+                                <div class="preview-empty">
+                                    <i class="fas fa-file-alt"></i>
+                                    <h4>Preview will appear here</h4>
+                                    <p>Start typing Markdown on the left to see the rendered output</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Download Section -->
+                    <div class="download-section">
+                        <button class="download-btn" id="download-btn" disabled>
+                            <i class="fas fa-download"></i>
+                            Download PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="container">
+                <!-- What is LuxPDF -->
+                <div class="content-block">
+                    <h3>What is LuxPDF?</h3>
+                    <p><strong>LuxPDF is an open-source, privacy-focused, and completely free suite of online PDF tools.
+                            We believe that your documents are your business, and we are committed to providing
+                            powerful, reliable tools without ever collecting your file data. Our platform runs entirely
+                            in your browser, ensuring that your files never leave your computer. With no ads, no
+                            registration, and no usage limits, LuxPDF offers a seamless and secure experience for all
+                            your PDF needs.</strong></p>
+                </div>
+
+                <!-- Why use our tool -->
+                <div class="content-block">
+                    <h3>Why use our Markdown Text to PDF tool?</h3>
+                    <ul>
+                        <li><strong>Live Preview:</strong> See your Markdown rendered in real-time as you type, ensuring
+                            your document looks exactly as intended.</li>
+                        <li><strong>Completely Free & Unlimited:</strong> Create as many PDF documents as you need,
+                            without any cost or restrictions.</li>
+                        <li><strong>Privacy First:</strong> Your text is processed directly in your browser. Nothing is
+                            ever uploaded to our servers.</li>
+                        <li><strong>Syntax Highlighting:</strong> Code blocks are beautifully highlighted for popular
+                            programming languages.</li>
+                        <li><strong>GitHub-Flavored Markdown:</strong> Full support for tables, task lists,
+                            strikethrough, and more.</li>
+                        <li><strong>High-Quality Output:</strong> Generate professional-looking PDFs with proper
+                            formatting and pagination.</li>
+                    </ul>
+                </div>
+
+                <!-- How to use -->
+                <div class="content-block">
+                    <h3>How to use the Markdown Text to PDF tool:</h3>
+                    <ol>
+                        <li><strong>Step 1:</strong> Type or paste your Markdown content in the editor on the left side.
+                        </li>
+                        <li><strong>Step 2:</strong> Watch the live preview update on the right side as you type.</li>
+                        <li><strong>Step 3:</strong> Once satisfied, click the "Download PDF" button to save your
+                            document.</li>
+                    </ol>
+                </div>
+
+                <!-- FAQ -->
+                <div class="content-block">
+                    <h3>Frequently Asked Questions (FAQ)</h3>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>What Markdown features are supported?</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>This tool supports GitHub-Flavored Markdown including headings, bold, italic, lists, code
+                                blocks with syntax highlighting, tables, blockquotes, links, images, and horizontal
+                                rules.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>Can I include images in my document?</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Yes! You can include images using the standard Markdown image syntax: ![alt
+                                text](image-url). Images from external URLs will be embedded in the PDF.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>Is my text content secure?</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Absolutely. All processing happens locally in your browser. Your text is never
+                                transmitted to any server, ensuring complete privacy.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Related Tools Section -->
+        <section class="related-tools-section">
+            <div class="container">
+                <h3 class="section-title">See Our Related Tools</h3>
+                <div class="related-tools-grid">
+                    <a href="/markdown-to-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fab fa-markdown"></i>
+                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4>Markdown to PDF</h4>
+                        <p>Convert Markdown files to PDF documents</p>
+                    </a>
+                    <a href="/txt-to-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-alt"></i>
+                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4>TXT to PDF</h4>
+                        <p>Convert text files to PDF documents</p>
+                    </a>
+                    <a href="/html-to-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-code"></i>
+                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4>HTML to PDF</h4>
+                        <p>Convert HTML files to PDF documents</p>
+                    </a>
+                    <a href="/merge-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-pdf"></i>
+                            <i class="fas fa-plus"></i>
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4>Merge PDF</h4>
+                        <p>Combine multiple PDF files into one</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-crown"></i>
+                    <span>LuxPDF</span>
+                </div>
+                <div class="footer-privacy">
+                    <div class="privacy-badge">
+                        <i class="fas fa-shield-alt"></i> 100% Private - Zero File Data Collection
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+                    <a href="/terms.html" class="footer-link">Terms of Service</a>
+                </div>
+                <div class="footer-social">
+                    <a href="https://github.com/VSRemoter/LuxPDF" class="social-link" target="_blank"
+                        rel="noopener noreferrer" aria-label="GitHub">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <a href="https://x.com/LuxPDF" class="social-link" target="_blank" rel="noopener noreferrer"
+                        aria-label="X (Twitter)">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                </div>
+                <div class="copyright">
+                    © 2025 LuxPDF. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Processing Overlay -->
+    <div class="processing-overlay" id="processing-overlay">
+        <div class="processing-content">
+            <div class="processing-spinner"></div>
+            <p>Generating PDF...</p>
+        </div>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+            // Markdown Text to PDF - Live Editor with Preview
+            (function () {
+                const markdownInput = document.getElementById('markdown-input');
+                const previewContent = document.getElementById('preview-content');
+                const downloadBtn = document.getElementById('download-btn');
+                const processingOverlay = document.getElementById('processing-overlay');
+
+                // Configure marked with highlight.js (using new renderer API)
+                const renderer = new marked.Renderer();
+
+                // Custom code block renderer with syntax highlighting
+                // Marked v5+ passes an object {text, lang, escaped} instead of separate params
+                renderer.code = function (codeObj, language, escaped) {
+                    // Handle both old API (code, lang) and new API ({text, lang})
+                    let code, lang;
+                    if (typeof codeObj === 'object' && codeObj !== null) {
+                        code = codeObj.text || codeObj.code || '';
+                        lang = codeObj.lang || '';
+                    } else {
+                        code = codeObj || '';
+                        lang = language || '';
+                    }
+
+                    const validLang = lang && window.hljs && window.hljs.getLanguage(lang);
+                    let highlighted;
+                    try {
+                        if (validLang) {
+                            highlighted = window.hljs.highlight(code, { language: lang }).value;
+                        } else if (window.hljs) {
+                            highlighted = window.hljs.highlightAuto(code).value;
+                        } else {
+                            // Escape HTML if no highlighter
+                            highlighted = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        }
+                    } catch (e) {
+                        highlighted = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
+                    return `<pre><code class="hljs ${lang}">${highlighted}</code></pre>`;
+                };
+
+                marked.setOptions({
+                    renderer: renderer,
+                    breaks: true,
+                    gfm: true
+                });
+
+                // Debounce function for performance
+                function debounce(func, wait) {
+                    let timeout;
+                    return function executedFunction(...args) {
+                        const later = () => {
+                            clearTimeout(timeout);
+                            func(...args);
+                        };
+                        clearTimeout(timeout);
+                        timeout = setTimeout(later, wait);
+                    };
+                }
+
+                // Render markdown to preview
+                function renderPreview() {
+                    const markdown = markdownInput.value.trim();
+
+                    if (!markdown) {
+                        previewContent.innerHTML = `
+                        <div class="preview-empty">
+                            <i class="fas fa-file-alt"></i>
+                            <h4>Preview will appear here</h4>
+                            <p>Start typing Markdown on the left to see the rendered output</p>
+                        </div>
+                    `;
+                        downloadBtn.disabled = true;
+                        return;
+                    }
+
+                    try {
+                        const html = marked.parse(markdown);
+                        previewContent.innerHTML = `<div class="markdown-body">${html}</div>`;
+                        downloadBtn.disabled = false;
+                    } catch (error) {
+                        console.error('Markdown parsing error:', error);
+                        previewContent.innerHTML = `<div class="markdown-body"><p style="color: red;">Error parsing Markdown</p></div>`;
+                    }
+                }
+
+                // Debounced version for real-time updates
+                const debouncedRender = debounce(renderPreview, 150);
+
+                // Event listeners
+                markdownInput.addEventListener('input', debouncedRender);
+
+                // Download PDF
+                downloadBtn.addEventListener('click', async function () {
+                    const markdown = markdownInput.value.trim();
+                    if (!markdown) return;
+
+                    processingOverlay.classList.add('active');
+
+                    try {
+                        const { jsPDF } = window.jspdf;
+
+                        // Create a temporary container for PDF rendering
+                        const container = document.createElement('div');
+                        container.className = 'markdown-body';
+                        container.style.cssText = `
+                        position: fixed;
+                        left: -10000px;
+                        top: 0;
+                        width: 794px;
+                        padding: 0;
+                        background: #ffffff;
+                        color: #24292f;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+                        font-size: 15px;
+                        line-height: 1.6;
+                        box-sizing: border-box;
+                    `;
+
+                        // Parse and set HTML
+                        const html = marked.parse(markdown);
+                        container.innerHTML = html;
+
+                        // Add styling for PDF render
+                        const style = document.createElement('style');
+                        style.textContent = `
+                        .markdown-body { line-height: 1.6; }
+                        .markdown-body h1 { font-size: 2em; margin: 0 0 16px; padding-bottom: 0.3em; border-bottom: 1px solid #d0d7de; }
+                        .markdown-body h2 { font-size: 1.5em; margin: 24px 0 16px; padding-bottom: 0.3em; border-bottom: 1px solid #d0d7de; }
+                        .markdown-body h3 { font-size: 1.25em; margin: 24px 0 16px; }
+                        .markdown-body p { margin: 0 0 16px; }
+                        .markdown-body ul, .markdown-body ol { padding-left: 2em; margin: 0 0 16px; }
+                        .markdown-body li { margin: 4px 0; }
+                        .markdown-body pre { background: #161b22; border-radius: 6px; padding: 16px; overflow: auto; margin: 0 0 16px; }
+                        .markdown-body pre code { background: transparent; color: #c9d1d9; font-size: 13px; }
+                        .markdown-body code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 4px; font-size: 85%; }
+                        .markdown-body blockquote { border-left: 4px solid #d0d7de; padding-left: 16px; color: #656d76; margin: 0 0 16px; }
+                        .markdown-body table { border-collapse: collapse; width: 100%; margin: 0 0 16px; }
+                        .markdown-body th, .markdown-body td { border: 1px solid #d0d7de; padding: 8px 12px; }
+                        .markdown-body th { background: #f6f8fa; font-weight: 600; }
+                        .markdown-body hr { border: none; border-top: 1px solid #d0d7de; margin: 24px 0; }
+                        .markdown-body img { max-width: 100%; height: auto; border-radius: 6px; }
+                        .markdown-body a { color: #0969da; }
+                    `;
+                        container.appendChild(style);
+                        document.body.appendChild(container);
+
+                        // Syntax highlighting is already applied by marked renderer
+
+                        // Wait for images to load
+                        const images = container.querySelectorAll('img');
+                        if (images.length > 0) {
+                            await Promise.all(Array.from(images).map(img => {
+                                if (img.complete) return Promise.resolve();
+                                return new Promise((resolve) => {
+                                    img.onload = resolve;
+                                    img.onerror = resolve;
+                                    setTimeout(resolve, 5000);
+                                });
+                            }));
+                        }
+
+                        // Small delay for rendering
+                        await new Promise(r => setTimeout(r, 300));
+
+                        // Render to canvas
+                        const scale = 3;
+                        const canvas = await html2canvas(container, {
+                            backgroundColor: '#ffffff',
+                            scale: scale,
+                            useCORS: true,
+                            allowTaint: true,
+                            imageTimeout: 10000,
+                            logging: false
+                        });
+
+                        // Create PDF
+                        const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+                        const pdfWidth = doc.internal.pageSize.getWidth();
+                        const pdfHeight = doc.internal.pageSize.getHeight();
+
+                        // Margins
+                        const marginPt = 72; // 1 inch
+                        const innerWidthPt = pdfWidth - 2 * marginPt;
+                        const innerHeightPt = pdfHeight - 2 * marginPt;
+                        const pageHeightPx = Math.floor(canvas.width * (innerHeightPt / innerWidthPt));
+
+                        // Slice canvas into pages
+                        let yOffset = 0;
+                        let pageIndex = 0;
+                        const overlapPx = Math.floor(8 * scale);
+
+                        while (yOffset < canvas.height) {
+                            const sliceHeight = Math.min(pageHeightPx, canvas.height - yOffset);
+                            const pageCanvas = document.createElement('canvas');
+                            pageCanvas.width = canvas.width;
+                            pageCanvas.height = sliceHeight;
+                            const ctx = pageCanvas.getContext('2d');
+                            ctx.drawImage(
+                                canvas,
+                                0, yOffset, canvas.width, sliceHeight,
+                                0, 0, pageCanvas.width, sliceHeight
+                            );
+
+                            const imgHeightPt = innerWidthPt * (sliceHeight / canvas.width);
+                            if (pageIndex > 0) doc.addPage();
+
+                            try {
+                                doc.addImage(pageCanvas, 'PNG', marginPt, marginPt, innerWidthPt, imgHeightPt, undefined, 'FAST');
+                            } catch (e) {
+                                try {
+                                    doc.addImage(pageCanvas, 'JPEG', marginPt, marginPt, innerWidthPt, imgHeightPt, undefined, 'FAST');
+                                } catch (_) { }
+                            }
+
+                            const willHaveMore = (yOffset + sliceHeight) < canvas.height;
+                            yOffset += willHaveMore ? (sliceHeight - overlapPx) : sliceHeight;
+                            pageIndex++;
+                        }
+
+                        // Cleanup
+                        container.remove();
+
+                        // Generate filename with timestamp
+                        const timestamp = new Date().toISOString().slice(0, 10);
+                        const filename = `markdown-document-${timestamp}.pdf`;
+
+                        // Download
+                        doc.save(filename);
+
+                    } catch (error) {
+                        console.error('PDF generation error:', error);
+                        alert('Error generating PDF: ' + error.message);
+                    } finally {
+                        processingOverlay.classList.remove('active');
+                    }
+                });
+
+                // Initial render (empty state)
+                renderPreview();
+            })();
+    </script>
+</body>
+
+</html>
