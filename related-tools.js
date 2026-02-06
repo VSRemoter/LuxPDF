@@ -519,6 +519,32 @@ const RELATED_TOOLS_CONFIG = {
             description: 'Combine multiple PDF files into one',
             icon: '<i class="fas fa-file-pdf"></i><i class="fas fa-plus"></i><i class="fas fa-file-pdf"></i>'
         }
+    ],
+    'image-resizer': [
+        {
+            name: 'Compress Image',
+            url: '/compress-image.html',
+            description: 'Reduce JPEG and PNG image file size',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-compress-arrows-alt"></i>'
+        },
+        {
+            name: 'WEBP to PNG',
+            url: '/webp-to-png.html',
+            description: 'Convert WEBP images to PNG',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-image"></i>'
+        },
+        {
+            name: 'WEBP to JPEG',
+            url: '/webp-to-jpeg.html',
+            description: 'Convert WEBP images to JPEG',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-image"></i>'
+        },
+        {
+            name: 'PNG to PDF',
+            url: '/png-to-pdf.html',
+            description: 'Convert PNG images to PDF documents',
+            icon: '<i class="fas fa-file-image"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        }
     ]
 };
 

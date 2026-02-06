@@ -23,6 +23,7 @@ class PDFConverterPro {
         this.uploadedFiles = [];
         this.isReversed = false; // Track reverse state for sort-pages tool
         this.handleFileInputChange = null; // Reference to file input change handler
+        this.imageResizerReference = null; // Store reference dimensions for locked-aspect resize mode
         this.init();
     }
 
@@ -511,6 +512,11 @@ class PDFConverterPro {
                 accept: '.jpg,.jpeg,.png',
                 description: 'Reduce JPEG/PNG file size'
             },
+            'image-resizer': {
+                title: 'Image Resizer',
+                accept: '.jpg,.jpeg,.png,.webp',
+                description: 'Resize JPEG, PNG, and WEBP images'
+            },
             'rotate-pdf': {
                 title: 'Rotate PDF Pages',
                 accept: '.pdf',
@@ -639,6 +645,12 @@ class PDFConverterPro {
             // Defer to allow DOM to update
             setTimeout(() => {
                 this.populateMetadataFromFirstPdf().catch(() => {});
+            }, 0);
+        }
+
+        if (this.currentTool === 'image-resizer') {
+            setTimeout(() => {
+                this.updateImageResizerReferenceDimensions().catch(() => {});
             }, 0);
         }
     }
@@ -799,6 +811,10 @@ class PDFConverterPro {
         this.updateFileList();
         this.updateProcessButton();
 
+        if (this.currentTool === 'image-resizer') {
+            this.updateImageResizerReferenceDimensions().catch(() => {});
+        }
+
         // Clear thumbnails if this was for sort pages tool
         if (this.currentTool === 'sort-pages' && this.uploadedFiles.length === 0) {
             const thumbnailContainer = document.getElementById('page-thumbnails');
@@ -815,6 +831,10 @@ class PDFConverterPro {
 
         fileList.innerHTML = '';
         this.uploadedFiles.forEach(file => this.addFileToList(file));
+
+        if (this.currentTool === 'image-resizer') {
+            this.updateImageResizerReferenceDimensions().catch(() => {});
+        }
     }
 
     // File reordering methods
@@ -1334,6 +1354,42 @@ class PDFConverterPro {
                 `;
                 break;
 
+            case 'image-resizer':
+                optionsContainer.innerHTML = `
+                    <div class="option-group">
+                        <label for="resize-mode">Resize Mode</label>
+                        <select id="resize-mode">
+                            <option value="percentage">By Percentage</option>
+                            <option value="resolution-lock">By Resolution (Keep Aspect Ratio)</option>
+                            <option value="resolution-free">By Resolution (Free Width & Height)</option>
+                        </select>
+                    </div>
+                    <div class="option-group" id="resize-percentage-group">
+                        <label for="resize-percentage">Resize Percentage</label>
+                        <div class="resize-inline-inputs">
+                            <input type="number" id="resize-percentage" min="1" max="500" value="100">
+                            <span>%</span>
+                        </div>
+                        <p style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.5rem;">
+                            Example: 50% makes each image half its original width and height.
+                        </p>
+                    </div>
+                    <div class="option-group" id="resize-resolution-group" style="display: none;">
+                        <label>Target Resolution</label>
+                        <div class="resize-dimension-inputs">
+                            <input type="number" id="resize-width" min="1" max="12000" value="1920">
+                            <span>x</span>
+                            <input type="number" id="resize-height" min="1" max="12000" value="1080">
+                        </div>
+                        <p id="resize-aspect-hint" style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.5rem;">
+                            Aspect ratio lock is off.
+                        </p>
+                        <p id="resize-original-hint" style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.35rem;"></p>
+                    </div>
+                `;
+                this.setupImageResizerOptionListeners();
+                break;
+
             case 'compare-pdfs':
                 optionsContainer.innerHTML = `
                     <div class="option-group">
@@ -1457,6 +1513,131 @@ class PDFConverterPro {
         }
     }
 
+    setupImageResizerOptionListeners() {
+        const modeSelect = document.getElementById('resize-mode');
+        const percentageInput = document.getElementById('resize-percentage');
+        const widthInput = document.getElementById('resize-width');
+        const heightInput = document.getElementById('resize-height');
+
+        if (!modeSelect || !percentageInput || !widthInput || !heightInput) return;
+
+        modeSelect.addEventListener('change', () => {
+            this.updateImageResizerModeUI();
+        });
+
+        percentageInput.addEventListener('input', () => {
+            const value = parseFloat(percentageInput.value);
+            if (!Number.isFinite(value) || value <= 0) return;
+            percentageInput.value = String(Math.min(500, Math.max(1, value)));
+        });
+
+        widthInput.addEventListener('input', () => {
+            this.syncImageResizerDimensions('width');
+        });
+
+        heightInput.addEventListener('input', () => {
+            this.syncImageResizerDimensions('height');
+        });
+
+        this.updateImageResizerModeUI();
+        this.updateImageResizerReferenceDimensions().catch(() => {});
+    }
+
+    updateImageResizerModeUI() {
+        const mode = document.getElementById('resize-mode')?.value || 'percentage';
+        const percentageGroup = document.getElementById('resize-percentage-group');
+        const resolutionGroup = document.getElementById('resize-resolution-group');
+        const aspectHint = document.getElementById('resize-aspect-hint');
+
+        if (percentageGroup) {
+            percentageGroup.style.display = mode === 'percentage' ? 'block' : 'none';
+        }
+        if (resolutionGroup) {
+            resolutionGroup.style.display = mode === 'percentage' ? 'none' : 'block';
+        }
+        if (aspectHint) {
+            aspectHint.textContent = mode === 'resolution-lock'
+                ? 'Aspect ratio lock is on. Editing width or height updates the other value automatically.'
+                : 'Aspect ratio lock is off. Width and height are fully independent.';
+        }
+
+        if (mode === 'resolution-lock') {
+            this.syncImageResizerDimensions('width');
+        }
+    }
+
+    syncImageResizerDimensions(changedField) {
+        if (this.currentTool !== 'image-resizer') return;
+        const mode = document.getElementById('resize-mode')?.value;
+        if (mode !== 'resolution-lock') return;
+
+        const widthInput = document.getElementById('resize-width');
+        const heightInput = document.getElementById('resize-height');
+        const ref = this.imageResizerReference;
+        if (!widthInput || !heightInput || !ref || !ref.width || !ref.height) return;
+
+        if (changedField === 'width') {
+            const width = parseInt(widthInput.value, 10);
+            if (Number.isFinite(width) && width > 0) {
+                heightInput.value = String(Math.max(1, Math.round((width / ref.width) * ref.height)));
+            }
+        } else {
+            const height = parseInt(heightInput.value, 10);
+            if (Number.isFinite(height) && height > 0) {
+                widthInput.value = String(Math.max(1, Math.round((height / ref.height) * ref.width)));
+            }
+        }
+    }
+
+    async updateImageResizerReferenceDimensions() {
+        if (this.currentTool !== 'image-resizer') return;
+
+        const widthInput = document.getElementById('resize-width');
+        const heightInput = document.getElementById('resize-height');
+        const originalHint = document.getElementById('resize-original-hint');
+        if (!widthInput || !heightInput || !originalHint) return;
+
+        if (!this.uploadedFiles.length) {
+            this.imageResizerReference = null;
+            originalHint.textContent = 'Upload an image to auto-fill dimensions.';
+            widthInput.dataset.initialized = '';
+            heightInput.dataset.initialized = '';
+            return;
+        }
+
+        const firstFile = this.uploadedFiles[0];
+        const dims = await new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(firstFile);
+            const img = new Image();
+            img.onload = () => {
+                const width = img.naturalWidth || img.width;
+                const height = img.naturalHeight || img.height;
+                URL.revokeObjectURL(url);
+                resolve({ width, height });
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error('Failed to read image dimensions'));
+            };
+            img.src = url;
+        });
+
+        this.imageResizerReference = dims;
+        originalHint.textContent = `Reference image: ${dims.width} x ${dims.height}px`;
+
+        if (!widthInput.dataset.initialized || !heightInput.dataset.initialized) {
+            widthInput.value = String(dims.width);
+            heightInput.value = String(dims.height);
+            widthInput.dataset.initialized = 'true';
+            heightInput.dataset.initialized = 'true';
+        }
+
+        const mode = document.getElementById('resize-mode')?.value;
+        if (mode === 'resolution-lock') {
+            this.syncImageResizerDimensions('width');
+        }
+    }
+
     updateProcessButton() {
         const processBtn = document.getElementById('process-btn');
         if (!processBtn) return; // Exit if process button doesn't exist
@@ -1480,6 +1661,18 @@ class PDFConverterPro {
                 processBtn.innerHTML = `
                     <i class="fas fa-cog"></i>
                     Process 2 files
+                `;
+            }
+        } else if (this.currentTool === 'image-resizer') {
+            if (enabled) {
+                processBtn.innerHTML = `
+                    <i class="fas fa-expand"></i>
+                    Resize ${fileCount} ${fileCount === 1 ? 'Image' : 'Images'}
+                `;
+            } else {
+                processBtn.innerHTML = `
+                    <i class="fas fa-expand"></i>
+                    Resize Image
                 `;
             }
         } else if (enabled) {
@@ -1573,6 +1766,9 @@ class PDFConverterPro {
                     break;
                 case 'compress-image':
                     results = await this.compressImage();
+                    break;
+                case 'image-resizer':
+                    results = await this.resizeImage();
                     break;
                 case 'rotate-pdf':
                     results = await this.rotatePdf();
@@ -1701,12 +1897,17 @@ class PDFConverterPro {
                 resultItem.classList.add('zip-file');
             }
 
+            const detailsMarkup = result.details
+                ? `<p class="result-meta">${result.details}</p>`
+                : '';
+
             resultItem.innerHTML = `
                 <div class="file-info">
                     <i class="fas ${this.getFileIcon(result.type)} file-icon"></i>
                     <div class="file-details">
                         <h5>${result.name}</h5>
                         <p>${this.formatFileSize(result.size)}</p>
+                        ${detailsMarkup}
                     </div>
                 </div>
                 <button class="download-btn" onclick="window.pdfConverter.downloadResult('${result.url}', '${result.name}')">
@@ -4674,7 +4875,28 @@ class PDFConverterPro {
         return results;
     }
 
-    // Word (DOCX) to PDF Conversion (Mammoth.js -> HTML -> html2canvas -> jsPDF)
+    // Word (DOCX) to PDF Conversion (docx-preview -> html2canvas -> jsPDF with Mammoth fallback)
+    async ensureDocxPreviewLib() {
+        // docx-preview relies on JSZip
+        if (!window.JSZip) {
+            await this.loadFirstAvailableScript([
+                'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+                'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'
+            ]);
+        }
+        if (!window.docx || typeof window.docx.renderAsync !== 'function') {
+            await this.loadFirstAvailableScript([
+                'https://cdn.jsdelivr.net/npm/docx-preview@0.3.6/dist/docx-preview.min.js',
+                'https://cdn.jsdelivr.net/npm/docx-preview@0.3.5/dist/docx-preview.min.js',
+                'https://unpkg.com/docx-preview@0.3.6/dist/docx-preview.min.js',
+                'https://unpkg.com/docx-preview/dist/docx-preview.min.js'
+            ]);
+        }
+        if (!window.docx || typeof window.docx.renderAsync !== 'function') {
+            throw new Error('DOCX renderer failed to load');
+        }
+    }
+
     async ensureMammothLib() {
         if (!window.mammoth) {
             await this.loadFirstAvailableScript([
@@ -4689,172 +4911,323 @@ class PDFConverterPro {
         }
     }
 
-    async convertWordToPdf() {
-        const results = [];
+    getRenderableNodeSize(node) {
+        const rect = node.getBoundingClientRect ? node.getBoundingClientRect() : { width: 0, height: 0 };
+        const width = Math.max(1, Math.ceil(Math.max(rect.width || 0, node.scrollWidth || 0, node.offsetWidth || 0)));
+        const height = Math.max(1, Math.ceil(Math.max(rect.height || 0, node.scrollHeight || 0, node.offsetHeight || 0)));
+        return { width, height };
+    }
 
-        // Ensure libraries are available
-        await this.ensureMammothLib();
-        await this.ensureHtmlRenderingLibs();
-        const { jsPDF } = window.jspdf;
+    async waitForRenderedContentAssets(container, timeoutMs = 30000) {
+        const fontWait = (document.fonts && document.fonts.ready)
+            ? Promise.race([
+                document.fonts.ready.catch(() => {}),
+                new Promise(resolve => setTimeout(resolve, 5000))
+            ])
+            : Promise.resolve();
 
-        for (const file of this.uploadedFiles) {
-            try {
-                // Read DOCX as ArrayBuffer
-                const arrayBuffer = await file.arrayBuffer();
+        const imageWait = new Promise(resolve => {
+            const images = Array.from(container.querySelectorAll('img'));
+            if (!images.length) return resolve();
+            let pending = images.length;
+            const done = () => {
+                pending -= 1;
+                if (pending <= 0) resolve();
+            };
+            images.forEach(img => {
+                if (img.complete) return done();
+                img.addEventListener('load', done, { once: true });
+                img.addEventListener('error', done, { once: true });
+            });
+            setTimeout(() => resolve(), timeoutMs);
+        });
 
-                // Convert DOCX -> HTML using Mammoth (inline images)
-                const mammothOptions = {
-                    convertImage: window.mammoth.images.inline(async function (element) {
-                        try {
-                            const imageBuffer = await element.read('base64');
-                            return { src: `data:${element.contentType};base64,${imageBuffer}` };
-                        } catch (e) {
-                            return null;
-                        }
-                    }),
-                    styleMap: [
-                        "p[style-name='Title'] => h1:fresh",
-                        "p[style-name='Subtitle'] => h2:fresh",
-                        "r[style-name='Subtle Emphasis'] => em",
-                        "r[style-name='Intense Emphasis'] => strong"
-                    ]
-                };
+        await Promise.all([fontWait, imageWait]);
+        // Give layout a couple of frames to settle
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
 
-                const result = await window.mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
-                let html = (result && result.value) ? result.value : '';
+    appendCanvasToPdf(pdf, canvas, orientation, isFirstPage) {
+        const addPageIfNeeded = () => {
+            if (isFirstPage) {
+                isFirstPage = false;
+            } else {
+                pdf.addPage('a4', orientation);
+            }
+        };
 
-                if (!html || !html.trim()) {
-                    throw new Error('No readable content found in the DOCX file');
-                }
+        const pageWidth = () => pdf.internal.pageSize.getWidth();
+        const pageHeight = () => pdf.internal.pageSize.getHeight();
 
-                // Prepare offscreen container to render HTML
-                const container = document.createElement('div');
-                const containerWidth = 794; // ~A4 width at 96 DPI
-                container.style.cssText = `position: fixed; left: -10000px; top: 0; width: ${containerWidth}px; padding: 0; background: #ffffff; color: #000; font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; box-sizing: border-box; max-width: none;`;
-                const baseStyles = `
-                    <style>
-                      * { box-sizing: border-box; }
-                      .docx-root {
-                        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                        font-size: 11pt;
-                        line-height: 1.15;
-                        color: #000;
-                        width: 100%;
-                      }
-                      .docx-root p { margin: 0 0 8pt; }
-                      .docx-root h1 { font-size: 20pt; margin: 0 0 10pt; }
-                      .docx-root h2 { font-size: 16pt; margin: 0 0 9pt; }
-                      .docx-root h3 { font-size: 14pt; margin: 0 0 8pt; }
-                      .docx-root img { max-width: 100%; height: auto; }
-                      .docx-root table { width: 100%; border-collapse: collapse; }
-                      .docx-root ul, .docx-root ol { margin: 0 0 8pt 24pt; }
-                      .docx-root a { color: #0645AD; text-decoration: underline; }
-                    </style>
-                `;
-                container.innerHTML = `${baseStyles}<div class="docx-root">${html}</div>`;
-                document.body.appendChild(container);
+        // If the rendered node is taller than one PDF page ratio, slice it.
+        const singlePageHeightPx = Math.floor(canvas.width * (pageHeight() / pageWidth()));
+        if (canvas.height > singlePageHeightPx * 1.03) {
+            let yOffset = 0;
+            while (yOffset < canvas.height) {
+                addPageIfNeeded();
+                const pdfW = pageWidth();
+                const pdfH = pageHeight();
+                const pageHeightPx = Math.floor(canvas.width * (pdfH / pdfW));
+                const sliceHeight = Math.min(pageHeightPx, canvas.height - yOffset);
 
-                // Collect anchors for clickable link overlay
-                const anchors = Array.from(container.querySelectorAll('a[href]')).map(a => ({
-                    el: a,
-                    href: a.getAttribute('href')
-                }));
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = canvas.width;
+                pageCanvas.height = sliceHeight;
+                const ctx = pageCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
 
-                // Create jsPDF document
-                const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
-                const pdfWidth = doc.internal.pageSize.getWidth();
-                const pdfHeight = doc.internal.pageSize.getHeight();
+                const imgHeightPt = pdfW * (sliceHeight / canvas.width);
+                pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfW, imgHeightPt, undefined, 'FAST');
+                yOffset += sliceHeight;
+            }
+            return isFirstPage;
+        }
 
-                // Render to canvas at high scale for quality
-                const scale = 2.5;
-                const canvas = await window.html2canvas(container, {
-                    scale,
+        addPageIfNeeded();
+        const pdfW = pageWidth();
+        const pdfH = pageHeight();
+        const ratio = Math.min(pdfW / canvas.width, pdfH / canvas.height);
+        const drawW = canvas.width * ratio;
+        const drawH = canvas.height * ratio;
+        const x = (pdfW - drawW) / 2;
+        const y = (pdfH - drawH) / 2;
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, drawW, drawH, undefined, 'FAST');
+        return isFirstPage;
+    }
+
+    async convertWordToPdfWithDocxPreview(file, arrayBuffer, jsPDF) {
+        const host = document.createElement('div');
+        host.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;max-width:none;padding:0;margin:0;';
+
+        const pageCss = document.createElement('style');
+        pageCss.textContent = `
+            .lux-docx-host .docx-wrapper {
+                background: #ffffff !important;
+                padding: 0 !important;
+            }
+            .lux-docx-host .docx-wrapper > section,
+            .lux-docx-host .docx-wrapper > .docx {
+                margin: 0 auto 16px auto !important;
+                box-shadow: none !important;
+            }
+            .lux-docx-host .docx {
+                box-shadow: none !important;
+            }
+        `;
+        host.className = 'lux-docx-host';
+        host.appendChild(pageCss);
+
+        const styleContainer = document.createElement('div');
+        const bodyContainer = document.createElement('div');
+        host.appendChild(styleContainer);
+        host.appendChild(bodyContainer);
+        document.body.appendChild(host);
+
+        try {
+            await window.docx.renderAsync(arrayBuffer, bodyContainer, styleContainer, {
+                className: 'docx',
+                inWrapper: true,
+                ignoreWidth: false,
+                ignoreHeight: false,
+                ignoreFonts: false,
+                breakPages: true,
+                // Critical for Word-authored docs that rely on lastRenderedPageBreak markers.
+                ignoreLastRenderedPageBreak: false,
+                renderHeaders: true,
+                renderFooters: true,
+                renderFootnotes: true,
+                renderEndnotes: true,
+                renderComments: true,
+                renderAltChunks: true,
+                useBase64URL: true,
+                trimXmlDeclaration: true,
+                experimental: true
+            });
+
+            await this.waitForRenderedContentAssets(bodyContainer, 35000);
+
+            const wrapper = bodyContainer.querySelector('.docx-wrapper') || bodyContainer;
+            let pageNodes = Array.from(wrapper.children).filter(el => el && el.nodeType === 1);
+            pageNodes = pageNodes.filter(el => !['STYLE', 'SCRIPT', 'LINK'].includes(el.tagName));
+            if (!pageNodes.length) pageNodes = [wrapper];
+
+            const firstSize = this.getRenderableNodeSize(pageNodes[0]);
+            const firstOrientation = firstSize.width >= firstSize.height ? 'l' : 'p';
+            const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: firstOrientation, compress: true });
+
+            let isFirstPage = true;
+            for (const pageNode of pageNodes) {
+                const size = this.getRenderableNodeSize(pageNode);
+                const orientation = size.width >= size.height ? 'l' : 'p';
+                const canvas = await window.html2canvas(pageNode, {
+                    scale: 3,
                     useCORS: true,
                     allowTaint: true,
                     backgroundColor: '#ffffff',
-                    imageTimeout: 20000,
+                    imageTimeout: 30000,
+                    logging: false,
+                    width: size.width,
+                    height: size.height,
+                    windowWidth: size.width,
+                    windowHeight: size.height,
+                    scrollX: 0,
+                    scrollY: 0
                 });
+                isFirstPage = this.appendCanvasToPdf(pdf, canvas, orientation, isFirstPage);
+            }
 
-                const fullCanvasWidth = canvas.width;
-                const fullCanvasHeight = canvas.height;
-                const pageHeightPx = Math.floor(fullCanvasWidth * (pdfHeight / pdfWidth));
-                const ratioCanvasToPdf = pdfWidth / fullCanvasWidth;
+            const pdfBytes = pdf.output('arraybuffer');
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            return {
+                name: file.name.replace(/\.docx$/i, '.pdf'),
+                type: 'application/pdf',
+                size: blob.size,
+                url: URL.createObjectURL(blob)
+            };
+        } finally {
+            if (host && host.parentNode) host.parentNode.removeChild(host);
+        }
+    }
 
-                // Precompute anchor rects in canvas pixel space
-                const anchorRects = anchors
-                    .filter(a => !!a.href && /^https?:|^mailto:|^#|^\//i.test(a.href))
-                    .map(a => {
-                        const rect = a.el.getBoundingClientRect();
-                        const parentRect = container.getBoundingClientRect();
-                        const left = (rect.left - parentRect.left) * scale;
-                        const top = (rect.top - parentRect.top) * scale;
-                        const width = rect.width * scale;
-                        const height = rect.height * scale;
-                        return { href: a.href, left, top, width, height };
-                    });
+    async convertWordToPdfWithMammoth(file, arrayBuffer, jsPDF) {
+        await this.ensureMammothLib();
 
-                // Slice canvas into PDF pages
-                let yOffset = 0;
-                let pageIndex = 0;
-                while (yOffset < fullCanvasHeight) {
-                    const sliceHeight = Math.min(pageHeightPx, fullCanvasHeight - yOffset);
+        const mammothOptions = {
+            convertImage: window.mammoth.images.inline(async function (element) {
+                try {
+                    const imageBuffer = await element.read('base64');
+                    return { src: `data:${element.contentType};base64,${imageBuffer}` };
+                } catch (e) {
+                    return null;
+                }
+            }),
+            styleMap: [
+                "p[style-name='Title'] => h1:fresh",
+                "p[style-name='Subtitle'] => h2:fresh",
+                "r[style-name='Subtle Emphasis'] => em",
+                "r[style-name='Intense Emphasis'] => strong"
+            ]
+        };
 
-                    const pageCanvas = document.createElement('canvas');
-                    pageCanvas.width = fullCanvasWidth;
-                    pageCanvas.height = sliceHeight;
-                    const ctx = pageCanvas.getContext('2d');
-                    ctx.drawImage(
-                        canvas,
-                        0, yOffset, fullCanvasWidth, sliceHeight,
-                        0, 0, fullCanvasWidth, sliceHeight
-                    );
+        const result = await window.mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
+        const html = (result && result.value) ? result.value : '';
+        if (!html || !html.trim()) {
+            throw new Error('No readable content found in the DOCX file');
+        }
 
-                    const imgData = pageCanvas.toDataURL('image/jpeg', 0.95);
-                    if (pageIndex > 0) doc.addPage();
-                    const imgHeightPt = pdfWidth * (sliceHeight / fullCanvasWidth);
-                    doc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeightPt);
+        const container = document.createElement('div');
+        const containerWidth = 794; // ~A4 width at 96 DPI
+        container.style.cssText = `position: fixed; left: -10000px; top: 0; width: ${containerWidth}px; padding: 0; background: #ffffff; color: #000; font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; box-sizing: border-box; max-width: none;`;
+        const baseStyles = `
+            <style>
+              * { box-sizing: border-box; }
+              .docx-root {
+                font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                font-size: 11pt;
+                line-height: 1.15;
+                color: #000;
+                width: 100%;
+              }
+              .docx-root p { margin: 0 0 8pt; }
+              .docx-root h1 { font-size: 20pt; margin: 0 0 10pt; }
+              .docx-root h2 { font-size: 16pt; margin: 0 0 9pt; }
+              .docx-root h3 { font-size: 14pt; margin: 0 0 8pt; }
+              .docx-root img { max-width: 100%; height: auto; }
+              .docx-root table { width: 100%; border-collapse: collapse; }
+              .docx-root ul, .docx-root ol { margin: 0 0 8pt 24pt; }
+              .docx-root a { color: #0645AD; text-decoration: underline; }
+            </style>
+        `;
+        container.innerHTML = `${baseStyles}<div class="docx-root">${html}</div>`;
+        document.body.appendChild(container);
 
-                    // Add clickable link annotations overlapping the image
-                    anchorRects.forEach(ar => {
-                        const arBottom = ar.top + ar.height;
-                        const pageBottom = yOffset + sliceHeight;
-                        const intersects = !(arBottom <= yOffset || ar.top >= pageBottom);
-                        if (!intersects) return;
-                        const visibleTop = Math.max(ar.top, yOffset);
-                        const visibleHeight = Math.min(arBottom, pageBottom) - visibleTop;
-                        if (visibleHeight <= 1) return;
-                        const xPt = ar.left * ratioCanvasToPdf;
-                        const yPt = (visibleTop - yOffset) * ratioCanvasToPdf;
-                        const wPt = ar.width * ratioCanvasToPdf;
-                        const hPt = visibleHeight * ratioCanvasToPdf;
-                        try {
-                            doc.link(xPt, yPt, wPt, hPt, { url: ar.href });
-                        } catch (_) { /* ignore link errors */ }
-                    });
+        try {
+            const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = doc.internal.pageSize.getHeight();
 
-                    yOffset += sliceHeight;
-                    pageIndex += 1;
+            const scale = 2.5;
+            const canvas = await window.html2canvas(container, {
+                scale,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                imageTimeout: 20000,
+            });
+
+            const fullCanvasWidth = canvas.width;
+            const fullCanvasHeight = canvas.height;
+            const pageHeightPx = Math.floor(fullCanvasWidth * (pdfHeight / pdfWidth));
+
+            let yOffset = 0;
+            let pageIndex = 0;
+            while (yOffset < fullCanvasHeight) {
+                const sliceHeight = Math.min(pageHeightPx, fullCanvasHeight - yOffset);
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = fullCanvasWidth;
+                pageCanvas.height = sliceHeight;
+                const ctx = pageCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, yOffset, fullCanvasWidth, sliceHeight, 0, 0, fullCanvasWidth, sliceHeight);
+
+                const imgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+                if (pageIndex > 0) doc.addPage();
+                const imgHeightPt = pdfWidth * (sliceHeight / fullCanvasWidth);
+                doc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeightPt);
+
+                yOffset += sliceHeight;
+                pageIndex += 1;
+            }
+
+            const pdfBytes = doc.output('arraybuffer');
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            return {
+                name: file.name.replace(/\.docx$/i, '.pdf'),
+                type: 'application/pdf',
+                size: blob.size,
+                url: URL.createObjectURL(blob)
+            };
+        } finally {
+            container.remove();
+        }
+    }
+
+    async convertWordToPdf() {
+        const results = [];
+        await this.ensureHtmlRenderingLibs();
+        const { jsPDF } = window.jspdf;
+
+        let hasDocxPreview = false;
+        try {
+            await this.ensureDocxPreviewLib();
+            hasDocxPreview = !!(window.docx && typeof window.docx.renderAsync === 'function');
+        } catch (_) {
+            hasDocxPreview = false;
+        }
+
+        for (const file of this.uploadedFiles) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+
+                let converted = null;
+                let primaryError = null;
+
+                if (hasDocxPreview) {
+                    try {
+                        converted = await this.convertWordToPdfWithDocxPreview(file, arrayBuffer, jsPDF);
+                    } catch (err) {
+                        primaryError = err;
+                        console.warn('High-fidelity DOCX renderer failed; falling back to Mammoth:', err);
+                    }
                 }
 
-                // Cleanup
-                container.remove();
+                if (!converted) {
+                    converted = await this.convertWordToPdfWithMammoth(file, arrayBuffer, jsPDF);
+                    if (primaryError) {
+                        this.showNotification(`Converted ${file.name} using compatibility mode`, 'info');
+                    }
+                }
 
-                // Output blob
-                const pdfBytes = doc.output('arraybuffer');
-                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                const url = URL.createObjectURL(blob);
-
-                // Output name
-                let outputName = file.name.replace(/\.docx$/i, '.pdf');
-                if (!/\.pdf$/i.test(outputName)) outputName = file.name + '.pdf';
-
-                results.push({
-                    name: outputName,
-                    type: 'application/pdf',
-                    size: blob.size,
-                    url
-                });
-
+                results.push(converted);
                 this.showNotification(`Successfully converted ${file.name} to PDF`, 'success');
             } catch (error) {
                 console.error('Error converting Word to PDF:', error);
@@ -5398,6 +5771,129 @@ class PDFConverterPro {
                     size: file.size,
                     url: URL.createObjectURL(file)
                 });
+            }
+        }
+
+        return results;
+    }
+
+    // Resize JPEG/PNG/WEBP images
+    async resizeImage() {
+        const results = [];
+
+        const mode = document.getElementById('resize-mode')?.value || 'percentage';
+        const percentageInput = document.getElementById('resize-percentage');
+        const widthInput = document.getElementById('resize-width');
+        const heightInput = document.getElementById('resize-height');
+
+        const percentage = percentageInput ? parseFloat(percentageInput.value) : 100;
+        const targetWidth = widthInput ? parseInt(widthInput.value, 10) : NaN;
+        const targetHeight = heightInput ? parseInt(heightInput.value, 10) : NaN;
+
+        if (mode === 'percentage') {
+            if (!Number.isFinite(percentage) || percentage <= 0) {
+                throw new Error('Please enter a valid resize percentage greater than 0');
+            }
+        } else {
+            if (!Number.isFinite(targetWidth) || targetWidth <= 0 || !Number.isFinite(targetHeight) || targetHeight <= 0) {
+                throw new Error('Please enter valid width and height values');
+            }
+        }
+
+        for (const file of this.uploadedFiles) {
+            const imageUrl = URL.createObjectURL(file);
+            try {
+                const img = await new Promise((resolve, reject) => {
+                    const image = new Image();
+                    image.onload = () => resolve(image);
+                    image.onerror = () => reject(new Error('Failed to load image'));
+                    image.src = imageUrl;
+                });
+
+                const originalWidth = img.naturalWidth || img.width;
+                const originalHeight = img.naturalHeight || img.height;
+
+                let resizedWidth = originalWidth;
+                let resizedHeight = originalHeight;
+
+                if (mode === 'percentage') {
+                    const scale = percentage / 100;
+                    resizedWidth = Math.max(1, Math.round(originalWidth * scale));
+                    resizedHeight = Math.max(1, Math.round(originalHeight * scale));
+                } else if (mode === 'resolution-lock') {
+                    const scale = targetWidth / originalWidth;
+                    resizedWidth = Math.max(1, Math.round(originalWidth * scale));
+                    resizedHeight = Math.max(1, Math.round(originalHeight * scale));
+                } else {
+                    resizedWidth = Math.max(1, targetWidth);
+                    resizedHeight = Math.max(1, targetHeight);
+                }
+
+                resizedWidth = Math.min(12000, resizedWidth);
+                resizedHeight = Math.min(12000, resizedHeight);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = resizedWidth;
+                canvas.height = resizedHeight;
+                const ctx = canvas.getContext('2d');
+
+                const lowerName = file.name.toLowerCase();
+                const isJpeg = file.type.includes('jpeg') || file.type.includes('jpg') || /\.(jpe?g)$/i.test(lowerName);
+                const isWebp = file.type.includes('webp') || /\.webp$/i.test(lowerName);
+
+                let outputMime = isJpeg ? 'image/jpeg' : isWebp ? 'image/webp' : 'image/png';
+                let outputExt = isJpeg ? 'jpg' : isWebp ? 'webp' : 'png';
+
+                if (outputMime === 'image/jpeg') {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, resizedWidth, resizedHeight);
+                }
+                ctx.drawImage(img, 0, 0, resizedWidth, resizedHeight);
+
+                let blob = await new Promise((resolve) => {
+                    if (outputMime === 'image/jpeg' || outputMime === 'image/webp') {
+                        canvas.toBlob((b) => resolve(b), outputMime, 0.92);
+                    } else {
+                        canvas.toBlob((b) => resolve(b), outputMime);
+                    }
+                });
+
+                if (!blob && outputMime === 'image/webp') {
+                    outputMime = 'image/png';
+                    outputExt = 'png';
+                    blob = await new Promise((resolve) => {
+                        canvas.toBlob((b) => resolve(b), outputMime);
+                    });
+                }
+
+                if (!blob) {
+                    throw new Error('Failed to generate resized image');
+                }
+
+                const sizeDifference = blob.size - file.size;
+                const sizeDeltaText = sizeDifference <= 0
+                    ? `${this.formatFileSize(Math.abs(sizeDifference))} smaller`
+                    : `${this.formatFileSize(sizeDifference)} larger`;
+
+                results.push({
+                    name: `${file.name.replace(/\.[^.]+$/, '')}_resized.${outputExt}`,
+                    type: outputMime,
+                    size: blob.size,
+                    url: URL.createObjectURL(blob),
+                    details: `Size: ${this.formatFileSize(file.size)} -> ${this.formatFileSize(blob.size)} (${sizeDeltaText}) | Resolution: ${originalWidth}x${originalHeight} -> ${resizedWidth}x${resizedHeight}`
+                });
+            } catch (error) {
+                console.error('Error resizing image:', error);
+                this.showNotification(`Failed to resize ${file.name}: ${error.message}`, 'error');
+                results.push({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    url: URL.createObjectURL(file),
+                    details: `Original size: ${this.formatFileSize(file.size)}`
+                });
+            } finally {
+                URL.revokeObjectURL(imageUrl);
             }
         }
 

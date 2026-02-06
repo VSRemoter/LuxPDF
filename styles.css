@@ -699,6 +699,11 @@ Upload Area */
     font-size: 1rem;
 }
 
+.select-images-btn {
+    margin-top: 1rem;
+    pointer-events: auto;
+}
+
 #file-input {
     display: none;
 }
@@ -883,6 +888,25 @@ Upload Area */
     outline: none;
     border-color: var(--accent-color);
     box-shadow: 0 0 0 2px rgba(186, 69, 60, 0.2);
+}
+
+.resize-inline-inputs,
+.resize-dimension-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.resize-inline-inputs input,
+.resize-dimension-inputs input {
+    width: auto;
+    flex: 1;
+}
+
+.resize-inline-inputs span,
+.resize-dimension-inputs span {
+    color: var(--text-secondary);
+    font-weight: 600;
 }
 
 .checkbox-group {
@@ -1329,6 +1353,12 @@ Upload Area */
 
 .result-item:hover {
     background: rgba(200, 214, 229, 0.08);
+}
+
+.result-meta {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.35rem;
 }
 
 .download-btn {
