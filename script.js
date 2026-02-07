@@ -621,7 +621,8 @@ class PDFConverterPro {
             type: f.type,
             size: f.size
         })));
-        
+
+        let filesAdded = 0;
         Array.from(files).forEach(file => {
             if (this.validateFile(file)) {
                 // Check if file already exists to prevent duplicates
@@ -631,19 +632,24 @@ class PDFConverterPro {
 
                 if (!existingFile) {
                     this.uploadedFiles.push(file);
-                    this.addFileToList(file);
+                    filesAdded++;
                 }
             }
         });
+
+        // Rebuild the whole list once so all items get consistent controls/sizing.
+        if (filesAdded > 0) {
+            this.updateFileList();
+        }
         this.updateProcessButton();
 
         // Show reordering tip for multiple files
         if (this.uploadedFiles.length > 1) {
             const toolName = this.currentTool;
             if (toolName === 'merge-pdf') {
-                this.showNotification('💡 Tip: Use arrow buttons to reorder files before merging', 'info');
+                this.showNotification('💡 Tip: Drag files (or use arrows) to set merge order', 'info');
             } else if (this.uploadedFiles.length === 2) {
-                this.showNotification('💡 Tip: You can reorder files using the arrow buttons', 'info');
+                this.showNotification('💡 Tip: You can drag files to reorder them', 'info');
             }
         }
 
@@ -756,25 +762,52 @@ class PDFConverterPro {
         return true;
     }
 
-    addFileToList(file) {
+    getFileId(file) {
+        return `${file.name}::${file.size}::${file.lastModified}`;
+    }
+
+    clearFileDropIndicators() {
+        document.querySelectorAll('.file-item.drop-before, .file-item.drop-after').forEach(item => {
+            item.classList.remove('drop-before', 'drop-after');
+        });
+    }
+
+    animateReorderedFile(fileId, direction = null) {
+        if (!fileId) return;
+
+        const fileList = document.getElementById('file-list');
+        if (!fileList) return;
+
+        const movedItem = Array.from(fileList.children).find(item => item.dataset.fileId === fileId);
+        if (!movedItem) return;
+
+        movedItem.classList.remove('reordered-up', 'reordered-down');
+        // Restart animation if the same file is moved repeatedly.
+        void movedItem.offsetWidth;
+        movedItem.classList.add(direction === 'up' ? 'reordered-up' : 'reordered-down');
+    }
+
+    addFileToList(file, options = {}) {
+        const { animate = true } = options;
         const fileList = document.getElementById('file-list');
         if (!fileList) return; // Exit if file list doesn't exist
 
         const fileItem = document.createElement('div');
-        fileItem.className = 'file-item fade-in';
-        fileItem.draggable = this.uploadedFiles.length > 1; // Enable dragging when multiple files
+        fileItem.className = animate ? 'file-item fade-in' : 'file-item';
         fileItem.dataset.fileName = file.name;
-        // Add unique identifier to prevent issues with same-named files
-        fileItem.dataset.fileId = `${file.name}_${file.size}_${file.lastModified}`;
 
         const fileSize = this.formatFileSize(file.size);
         const fileIcon = this.getFileIcon(file.type);
 
-        // Show reorder controls when there are multiple files OR will be multiple files
+        // Show reorder controls only when there are multiple files.
         const showReorderControls = this.uploadedFiles.length > 1;
         const currentIndex = this.uploadedFiles.findIndex(f =>
             f.name === file.name && f.size === file.size && f.lastModified === file.lastModified
         );
+        fileItem.draggable = showReorderControls;
+        fileItem.dataset.fileId = this.getFileId(file);
+        fileItem.dataset.fileIndex = String(currentIndex);
+
         const isFirst = currentIndex === 0;
         const isLast = currentIndex === this.uploadedFiles.length - 1;
 
@@ -813,6 +846,8 @@ class PDFConverterPro {
             </div>
         `;
 
+        fileItem.querySelectorAll('button, i').forEach(el => el.setAttribute('draggable', 'false'));
+
         fileList.appendChild(fileItem);
 
         // Add drag and drop event listeners only if there are multiple files
@@ -848,12 +883,17 @@ class PDFConverterPro {
         }
     }
 
-    updateFileList() {
+    updateFileList(options = {}) {
+        const { animate = true, movedFileId = null, reorderDirection = null } = options;
         const fileList = document.getElementById('file-list');
         if (!fileList) return; // Exit if file list doesn't exist
 
         fileList.innerHTML = '';
-        this.uploadedFiles.forEach(file => this.addFileToList(file));
+        this.uploadedFiles.forEach(file => this.addFileToList(file, { animate }));
+
+        if (movedFileId) {
+            this.animateReorderedFile(movedFileId, reorderDirection);
+        }
 
         if (this.currentTool === 'image-resizer') {
             this.updateImageResizerReferenceDimensions().catch(() => {});
@@ -866,10 +906,15 @@ class PDFConverterPro {
             file.name === fileName && file.size === fileSize && file.lastModified === lastModified
         );
         if (index > 0) {
+            const movedFile = this.uploadedFiles[index];
             // Swap with previous file
             [this.uploadedFiles[index - 1], this.uploadedFiles[index]] =
                 [this.uploadedFiles[index], this.uploadedFiles[index - 1]];
-            this.updateFileList();
+            this.updateFileList({
+                animate: false,
+                movedFileId: this.getFileId(movedFile),
+                reorderDirection: 'up'
+            });
         }
     }
 
@@ -878,27 +923,34 @@ class PDFConverterPro {
             file.name === fileName && file.size === fileSize && file.lastModified === lastModified
         );
         if (index < this.uploadedFiles.length - 1) {
+            const movedFile = this.uploadedFiles[index];
             // Swap with next file
             [this.uploadedFiles[index], this.uploadedFiles[index + 1]] =
                 [this.uploadedFiles[index + 1], this.uploadedFiles[index]];
-            this.updateFileList();
+            this.updateFileList({
+                animate: false,
+                movedFileId: this.getFileId(movedFile),
+                reorderDirection: 'down'
+            });
         }
     }
 
     setupFileReorderEvents(fileItem) {
         fileItem.addEventListener('dragstart', (e) => {
+            const draggedIndex = Number.parseInt(fileItem.dataset.fileIndex, 10);
+            if (Number.isNaN(draggedIndex)) {
+                e.preventDefault();
+                return;
+            }
+
             fileItem.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', fileItem.dataset.fileId);
+            e.dataTransfer.setData('text/plain', String(draggedIndex));
         });
 
-        fileItem.addEventListener('dragend', (e) => {
+        fileItem.addEventListener('dragend', () => {
             fileItem.classList.remove('dragging');
-            // Remove all drop indicators
-            document.querySelectorAll('.file-item').forEach(item => {
-                item.style.borderTop = '';
-                item.style.borderBottom = '';
-            });
+            this.clearFileDropIndicators();
         });
 
         fileItem.addEventListener('dragover', (e) => {
@@ -909,77 +961,52 @@ class PDFConverterPro {
             if (draggingItem && draggingItem !== fileItem) {
                 const rect = fileItem.getBoundingClientRect();
                 const midY = rect.top + rect.height / 2;
+                const insertAfter = e.clientY >= midY;
 
-                // Clear previous indicators
-                fileItem.style.borderTop = '';
-                fileItem.style.borderBottom = '';
+                this.clearFileDropIndicators();
 
-                // Show drop indicator
-                if (e.clientY < midY) {
-                    fileItem.style.borderTop = '3px solid var(--accent-color)';
-                } else {
-                    fileItem.style.borderBottom = '3px solid var(--accent-color)';
-                }
+                // Show stable drop indicator without changing element height.
+                fileItem.classList.add(insertAfter ? 'drop-after' : 'drop-before');
             }
         });
 
         fileItem.addEventListener('dragleave', (e) => {
-            // Only clear if we're actually leaving the element
-            const rect = fileItem.getBoundingClientRect();
-            if (e.clientX < rect.left || e.clientX > rect.right ||
-                e.clientY < rect.top || e.clientY > rect.bottom) {
-                fileItem.style.borderTop = '';
-                fileItem.style.borderBottom = '';
+            if (!fileItem.contains(e.relatedTarget)) {
+                fileItem.classList.remove('drop-before', 'drop-after');
             }
         });
 
         fileItem.addEventListener('drop', (e) => {
             e.preventDefault();
-            fileItem.style.borderTop = '';
-            fileItem.style.borderBottom = '';
+            this.clearFileDropIndicators();
 
-            const draggedFileId = e.dataTransfer.getData('text/plain');
-            const targetFileId = fileItem.dataset.fileId;
+            const draggedIndex = Number.parseInt(e.dataTransfer.getData('text/plain'), 10);
+            const targetIndex = Number.parseInt(fileItem.dataset.fileIndex, 10);
 
-            if (draggedFileId && draggedFileId !== targetFileId) {
-                // Parse file identifiers to find the actual files
-                const [draggedName, draggedSize, draggedModified] = draggedFileId.split('_');
-                const [targetName, targetSize, targetModified] = targetFileId.split('_');
-
-                const draggedIndex = this.uploadedFiles.findIndex(file =>
-                    file.name === draggedName &&
-                    file.size === parseInt(draggedSize) &&
-                    file.lastModified === parseInt(draggedModified)
-                );
-                const targetIndex = this.uploadedFiles.findIndex(file =>
-                    file.name === targetName &&
-                    file.size === parseInt(targetSize) &&
-                    file.lastModified === parseInt(targetModified)
-                );
-
-                if (draggedIndex !== -1 && targetIndex !== -1) {
-                    // Determine if we should insert before or after target
-                    const rect = fileItem.getBoundingClientRect();
-                    const midY = rect.top + rect.height / 2;
-                    const insertAfter = e.clientY >= midY;
-
-                    // Remove dragged file
-                    const draggedFile = this.uploadedFiles.splice(draggedIndex, 1)[0];
-
-                    // Calculate new insertion index
-                    let newIndex = targetIndex;
-                    if (draggedIndex < targetIndex) {
-                        newIndex = targetIndex - 1;
-                    }
-                    if (insertAfter) {
-                        newIndex++;
-                    }
-
-                    // Insert at new position
-                    this.uploadedFiles.splice(newIndex, 0, draggedFile);
-                    this.updateFileList();
-                }
+            if (Number.isNaN(draggedIndex) || Number.isNaN(targetIndex) || draggedIndex === targetIndex) {
+                return;
             }
+
+            const rect = fileItem.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            const insertAfter = e.clientY >= midY;
+
+            let insertIndex = targetIndex + (insertAfter ? 1 : 0);
+            if (draggedIndex < insertIndex) {
+                insertIndex--;
+            }
+
+            if (insertIndex === draggedIndex) {
+                return;
+            }
+
+            const [draggedFile] = this.uploadedFiles.splice(draggedIndex, 1);
+            this.uploadedFiles.splice(insertIndex, 0, draggedFile);
+            this.updateFileList({
+                animate: false,
+                movedFileId: this.getFileId(draggedFile),
+                reorderDirection: insertIndex < draggedIndex ? 'up' : 'down'
+            });
         });
     }
 
