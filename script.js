@@ -35,6 +35,13 @@ class PDFConverterPro {
 
     // Method to setup tool-specific pages
     setupToolSpecificPage() {
+        // Fallback: infer tool name from URL on tool pages
+        if (!this.currentTool) {
+            const pageName = (window.location.pathname.split('/').pop() || '').toLowerCase();
+            if (pageName.endsWith('.html')) {
+                this.currentTool = pageName.replace('.html', '');
+            }
+        }
         if (!this.currentTool) return;
 
         // Compute tool config once
@@ -665,6 +672,27 @@ class PDFConverterPro {
         const fileName = file.name.toLowerCase();
         const mimeType = file.type.toLowerCase();
 
+        // Strict image type validation for Image Resizer
+        if (this.currentTool === 'image-resizer') {
+            const allowedExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+            const allowedMimeTypes = new Set([
+                'image/png',
+                'image/jpeg',
+                'image/jpg',
+                'image/pjpeg',
+                'image/webp'
+            ]);
+            const isValidExtension = allowedExtensions.has(fileExtension);
+            const isValidMime = mimeType === '' || allowedMimeTypes.has(mimeType);
+            const isValidImageResizerFile = isValidExtension && isValidMime;
+
+            if (!isValidImageResizerFile) {
+                this.showError(`Image Resizer only supports PNG, JPEG, and WEBP files: ${file.name}`);
+                return false;
+            }
+            return true;
+        }
+
         // Enhanced validation for HEIF/HEIC files (especially for mobile devices)
         const isValid = acceptedTypes.some(type => {
             const cleanType = type.replace('.', '').toLowerCase();
@@ -790,11 +818,6 @@ class PDFConverterPro {
         // Add drag and drop event listeners only if there are multiple files
         if (showReorderControls) {
             this.setupFileReorderEvents(fileItem);
-        }
-
-        // Generate preview for image files automatically (except for PNG/JPEG to PDF tools)
-        if (file.type.includes('image') && this.currentTool !== 'png-to-pdf' && this.currentTool !== 'jpeg-to-pdf') {
-            this.generateImagePreview(file);
         }
 
         // Generate page thumbnails for sort pages tool
@@ -2143,8 +2166,10 @@ class PDFConverterPro {
             const reader = new FileReader();
             reader.onload = (e) => {
                 this.showPreviewModal(file.name, `
-                    <div class="file-preview">
-                        <img src="${e.target.result}" alt="${file.name}" style="max-height: 100px;">
+                    <div class="file-preview file-preview-image">
+                        <div class="preview-image-stage">
+                            <img src="${e.target.result}" alt="${file.name}">
+                        </div>
                     </div>
                 `);
             };
@@ -2225,26 +2250,6 @@ class PDFConverterPro {
         // Show modal
         previewModal.style.display = 'block';
         document.body.style.overflow = 'hidden';
-    }
-
-    // Generate image preview for image files
-    generateImagePreview(file) {
-        if (!file.type.includes('image')) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const fileList = document.getElementById('file-list');
-            const fileItem = fileList.querySelector(`.file-item:last-child`);
-
-            if (fileItem) {
-                const previewDiv = document.createElement('div');
-                previewDiv.className = 'file-preview';
-                previewDiv.innerHTML = `<img src="${e.target.result}" alt="${file.name}" style="max-height: 100px;">`;
-
-                fileItem.appendChild(previewDiv);
-            }
-        };
-        reader.readAsDataURL(file);
     }
 
     downloadResult(url, fileName) {

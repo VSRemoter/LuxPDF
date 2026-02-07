@@ -348,7 +348,8 @@ ols Section */
 }
 
 .tools-table .tool-link[data-tool="markdown-to-pdf"]::after,
-.tools-table .tool-link[data-tool="markdown-text-to-pdf"]::after {
+.tools-table .tool-link[data-tool="markdown-text-to-pdf"]::after,
+.tools-table .tool-link[data-tool="image-resizer"]::after {
     content: "New!";
     display: inline-block;
     margin-left: 0.5rem;
@@ -1841,7 +1842,7 @@ fication System */
 /* File Preview */
 .file-preview {
     max-width: 100%;
-    margin: 1rem 0;
+    margin: 0;
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: 0 5px 15px rgba(15, 15, 35, 0.4);
@@ -1851,7 +1852,34 @@ fication System */
 
 .file-preview img {
     max-width: 100%;
+    height: auto;
     display: block;
+}
+
+.file-preview-image {
+    display: flex;
+    justify-content: center;
+}
+
+.preview-image-stage {
+    width: min(92vw, 980px);
+    height: clamp(320px, 70vh, 680px);
+    max-width: 100%;
+    border-radius: calc(var(--border-radius) - 2px);
+    border: 1px solid var(--background-tertiary);
+    background:
+        linear-gradient(45deg, rgba(200, 214, 229, 0.08) 25%, transparent 25%) 0 0 / 18px 18px,
+        linear-gradient(-45deg, rgba(200, 214, 229, 0.08) 25%, transparent 25%) 0 0 / 18px 18px,
+        linear-gradient(45deg, transparent 75%, rgba(200, 214, 229, 0.08) 75%) 0 0 / 18px 18px,
+        linear-gradient(-45deg, transparent 75%, rgba(200, 214, 229, 0.08) 75%) 0 0 / 18px 18px,
+        rgba(15, 15, 35, 0.55);
+}
+
+.preview-image-stage img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
 }
 
 /* Empty State */
@@ -1895,12 +1923,13 @@ fication System */
 /* Preview
  Modal */
 #preview-modal .modal-content {
-    max-width: 90%;
-    max-height: 90vh;
+    width: min(96vw, 1100px);
+    max-width: 96vw;
+    max-height: 92vh;
 }
 
 #preview-modal .modal-body {
-    padding: 1rem;
+    padding: 1rem 1.25rem 1.25rem;
     overflow: auto;
 }
 
