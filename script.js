@@ -24,6 +24,9 @@ class PDFConverterPro {
         this.isReversed = false; // Track reverse state for sort-pages tool
         this.handleFileInputChange = null; // Reference to file input change handler
         this.imageResizerReference = null; // Store reference dimensions for locked-aspect resize mode
+        this.watermarkImageAsset = null; // Selected watermark image data for add-watermark tool
+        this.watermarkPreviewRenderToken = 0; // Avoid stale async preview renders
+        this.watermarkInteractionCleanup = null; // Cleanup handlers for watermark drag/resize
         this.init();
     }
 
@@ -97,6 +100,7 @@ class PDFConverterPro {
 
         // Clear any existing files and reset state
         this.uploadedFiles = [];
+        this.watermarkImageAsset = null;
         this.clearFileList();
         this.clearResults();
         this.hideProgress();
@@ -566,6 +570,11 @@ class PDFConverterPro {
                 accept: '.pdf',
                 description: 'Swap & sort PDF pages in anyway you want'
             },
+            'add-watermark': {
+                title: 'Add Watermark',
+                accept: '.pdf',
+                description: 'Add text or image watermark to a PDF file'
+            },
             'flatten-pdf': {
                 title: 'Flatten PDF',
                 accept: '.pdf',
@@ -622,6 +631,37 @@ class PDFConverterPro {
             size: f.size
         })));
 
+        if (this.currentTool === 'add-watermark') {
+            const incomingFiles = Array.from(files);
+            let selectedFile = null;
+            for (const file of incomingFiles) {
+                if (this.validateFile(file)) {
+                    selectedFile = file;
+                    break;
+                }
+            }
+
+            if (!selectedFile) {
+                return;
+            }
+
+            if (incomingFiles.length > 1) {
+                this.showNotification('Only one PDF can be used for Add Watermark. Using the first valid file.', 'info');
+            }
+
+            this.uploadedFiles = [selectedFile];
+            const watermarkOverlay = document.getElementById('watermark-overlay');
+            if (watermarkOverlay) {
+                delete watermarkOverlay.dataset.positioned;
+            }
+            this.updateFileList();
+            this.updateProcessButton();
+            this.renderWatermarkPreviewPage().catch((e) => {
+                console.warn('Failed to render watermark preview page:', e);
+            });
+            return;
+        }
+
         let filesAdded = 0;
         Array.from(files).forEach(file => {
             if (this.validateFile(file)) {
@@ -666,6 +706,7 @@ class PDFConverterPro {
                 this.updateImageResizerReferenceDimensions().catch(() => {});
             }, 0);
         }
+
     }
 
     validateFile(file) {
@@ -880,6 +921,10 @@ class PDFConverterPro {
                 thumbnailContainer.innerHTML = '';
                 thumbnailContainer.style.display = 'none';
             }
+        }
+
+        if (this.currentTool === 'add-watermark') {
+            this.renderWatermarkPreviewPage().catch(() => {});
         }
     }
 
@@ -1538,6 +1583,139 @@ class PDFConverterPro {
                 this.setupResetButtonListener();
                 break;
 
+            case 'add-watermark':
+                optionsContainer.innerHTML = `
+                    <div class="watermark-layout">
+                        <div class="watermark-preview-column">
+                            <div class="option-group">
+                                <label>Preview (Page 1)</label>
+                                <div class="watermark-preview-panel">
+                                    <div class="watermark-preview-shell" id="watermark-preview-shell">
+                                        <canvas id="watermark-preview-canvas"></canvas>
+                                        <div id="watermark-overlay" class="watermark-overlay" style="display: none;"></div>
+                                        <button type="button" id="watermark-resize-handle" class="watermark-resize-handle" aria-label="Resize watermark" style="display: none;">
+                                            <i class="fas fa-arrows-alt"></i>
+                                        </button>
+                                        <div id="watermark-preview-empty" class="watermark-preview-empty">
+                                            Upload one PDF file to preview watermark placement on page 1.
+                                        </div>
+                                    </div>
+                                </div>
+                                <p style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.55rem;">
+                                    Drag the watermark in the preview to position it. In image mode, use the resize handle or width/height fields.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="watermark-controls-column">
+                            <div class="option-group">
+                                <label for="watermark-excluded-pages">Exclude Pages (optional)</label>
+                                <input type="text" id="watermark-excluded-pages" placeholder="Example: 6, 9, 12-14">
+                                <p style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.5rem;">
+                                    These pages will be skipped and left unchanged.
+                                </p>
+                            </div>
+
+                            <div class="option-group">
+                                <label>Watermark Type</label>
+                                <div class="watermark-mode-toggle">
+                                    <label class="watermark-mode-option">
+                                        <input type="radio" name="watermark-mode" id="watermark-mode-text" value="text" checked>
+                                        Add Text
+                                    </label>
+                                    <label class="watermark-mode-option">
+                                        <input type="radio" name="watermark-mode" id="watermark-mode-image" value="image">
+                                        Add Image
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="option-group" id="watermark-text-options">
+                                <label for="watermark-text-input">Watermark Text</label>
+                                <input type="text" id="watermark-text-input" value="CONFIDENTIAL" maxlength="120">
+
+                                <div class="watermark-input-grid">
+                                    <div>
+                                        <label for="watermark-text-opacity">Opacity: <span id="watermark-text-opacity-value">35%</span></label>
+                                        <input type="range" id="watermark-text-opacity" min="5" max="100" value="35">
+                                    </div>
+                                    <div>
+                                        <label for="watermark-text-rotation">Rotation: <span id="watermark-text-rotation-value">-30°</span></label>
+                                        <input type="range" id="watermark-text-rotation" min="-180" max="180" value="-30">
+                                    </div>
+                                </div>
+
+                                <div class="watermark-input-grid">
+                                    <div>
+                                        <label for="watermark-text-color">Color</label>
+                                        <input type="color" id="watermark-text-color" value="#ba453c">
+                                    </div>
+                                    <div>
+                                        <label for="watermark-text-font-size">Font Size</label>
+                                        <input type="number" id="watermark-text-font-size" min="8" max="220" value="48">
+                                    </div>
+                                </div>
+
+                                <div class="watermark-input-grid">
+                                    <div>
+                                        <label for="watermark-text-font-family">Font Family</label>
+                                        <select id="watermark-text-font-family">
+                                            <option value="helvetica">Helvetica</option>
+                                            <option value="times">Times Roman</option>
+                                            <option value="courier">Courier</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="watermark-text-font-style">Font Style</label>
+                                        <select id="watermark-text-font-style">
+                                            <option value="regular">Regular</option>
+                                            <option value="bold">Bold</option>
+                                            <option value="italic">Italic</option>
+                                            <option value="bold-italic">Bold Italic</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="option-group" id="watermark-image-options" style="display: none;">
+                                <label for="watermark-image-file">Watermark Image</label>
+                                <input type="file" id="watermark-image-file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp">
+                                <p id="watermark-image-selected" style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.7); margin-top: 0.35rem;">No image selected</p>
+
+                                <div class="checkbox-group" style="margin-top: 0.65rem;">
+                                    <input type="checkbox" id="watermark-image-centered" checked>
+                                    <label for="watermark-image-centered">Center image on page</label>
+                                </div>
+
+                                <div class="watermark-input-grid">
+                                    <div>
+                                        <label for="watermark-image-opacity">Opacity: <span id="watermark-image-opacity-value">35%</span></label>
+                                        <input type="range" id="watermark-image-opacity" min="5" max="100" value="35">
+                                    </div>
+                                    <div>
+                                        <label for="watermark-image-rotation">Rotation: <span id="watermark-image-rotation-value">0°</span></label>
+                                        <input type="range" id="watermark-image-rotation" min="-180" max="180" value="0">
+                                    </div>
+                                </div>
+
+                                <div class="watermark-input-grid">
+                                    <div>
+                                        <label for="watermark-image-width">Width</label>
+                                        <input type="number" id="watermark-image-width" min="1" max="5000" value="220">
+                                    </div>
+                                    <div>
+                                        <label for="watermark-image-height">Height</label>
+                                        <input type="number" id="watermark-image-height" min="1" max="5000" value="130">
+                                    </div>
+                                </div>
+                                <p id="watermark-image-dimension-error" class="watermark-dimension-error" style="display: none;"></p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                this.setupWatermarkOptionListeners();
+                break;
+
             case 'flatten-pdf':
                 optionsContainer.innerHTML = `
                     <div class="option-group">
@@ -1561,6 +1739,626 @@ class PDFConverterPro {
                 `;
                 break;
         }
+    }
+
+    setupWatermarkOptionListeners() {
+        if (this.watermarkInteractionCleanup) {
+            this.watermarkInteractionCleanup();
+            this.watermarkInteractionCleanup = null;
+        }
+
+        const modeInputs = Array.from(document.querySelectorAll('input[name="watermark-mode"]'));
+        const textOpacity = document.getElementById('watermark-text-opacity');
+        const textRotation = document.getElementById('watermark-text-rotation');
+        const imageOpacity = document.getElementById('watermark-image-opacity');
+        const imageRotation = document.getElementById('watermark-image-rotation');
+        const textInput = document.getElementById('watermark-text-input');
+        const textColor = document.getElementById('watermark-text-color');
+        const textSize = document.getElementById('watermark-text-font-size');
+        const textFamily = document.getElementById('watermark-text-font-family');
+        const textStyle = document.getElementById('watermark-text-font-style');
+        const imageInput = document.getElementById('watermark-image-file');
+        const imageCentered = document.getElementById('watermark-image-centered');
+        const imageWidth = document.getElementById('watermark-image-width');
+        const imageHeight = document.getElementById('watermark-image-height');
+
+        const overlayRefresh = (forceRecenter = false) => {
+            this.updateWatermarkValueLabels();
+            this.updateWatermarkModeUI();
+            this.updateWatermarkOverlayFromControls(forceRecenter);
+            this.updateProcessButton();
+        };
+
+        modeInputs.forEach(input => {
+            input.addEventListener('change', () => overlayRefresh(true));
+        });
+
+        [textInput, textColor, textSize, textFamily, textStyle, textOpacity, textRotation].forEach(el => {
+            if (el) {
+                el.addEventListener('input', () => overlayRefresh(false));
+                el.addEventListener('change', () => overlayRefresh(false));
+            }
+        });
+
+        [imageOpacity, imageRotation, imageWidth, imageHeight].forEach(el => {
+            if (el) {
+                el.addEventListener('input', () => overlayRefresh(false));
+                el.addEventListener('change', () => overlayRefresh(false));
+            }
+        });
+
+        if (imageCentered) {
+            imageCentered.addEventListener('change', () => overlayRefresh(true));
+        }
+
+        if (imageInput) {
+            imageInput.addEventListener('change', async (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                try {
+                    await this.loadWatermarkImageAsset(file);
+                    const selectedEl = document.getElementById('watermark-image-selected');
+                    if (selectedEl) {
+                        selectedEl.textContent = `Selected image: ${file.name}`;
+                    }
+                    overlayRefresh(true);
+                } catch (error) {
+                    this.showError(error.message || 'Failed to load watermark image');
+                }
+            });
+        }
+
+        this.watermarkInteractionCleanup = this.setupWatermarkInteractionEvents();
+        this.updateWatermarkValueLabels();
+        this.updateWatermarkModeUI();
+        this.renderWatermarkPreviewPage().catch((e) => {
+            console.warn('Failed to render watermark preview page:', e);
+        });
+        this.updateProcessButton();
+    }
+
+    updateWatermarkValueLabels() {
+        const textOpacity = document.getElementById('watermark-text-opacity');
+        const textRotation = document.getElementById('watermark-text-rotation');
+        const imageOpacity = document.getElementById('watermark-image-opacity');
+        const imageRotation = document.getElementById('watermark-image-rotation');
+
+        const textOpacityValue = document.getElementById('watermark-text-opacity-value');
+        const textRotationValue = document.getElementById('watermark-text-rotation-value');
+        const imageOpacityValue = document.getElementById('watermark-image-opacity-value');
+        const imageRotationValue = document.getElementById('watermark-image-rotation-value');
+
+        if (textOpacity && textOpacityValue) textOpacityValue.textContent = `${textOpacity.value}%`;
+        if (textRotation && textRotationValue) textRotationValue.textContent = `${textRotation.value}°`;
+        if (imageOpacity && imageOpacityValue) imageOpacityValue.textContent = `${imageOpacity.value}%`;
+        if (imageRotation && imageRotationValue) imageRotationValue.textContent = `${imageRotation.value}°`;
+    }
+
+    updateWatermarkModeUI() {
+        const mode = document.querySelector('input[name="watermark-mode"]:checked')?.value || 'text';
+        const textOptions = document.getElementById('watermark-text-options');
+        const imageOptions = document.getElementById('watermark-image-options');
+        const resizeHandle = document.getElementById('watermark-resize-handle');
+        const centered = document.getElementById('watermark-image-centered')?.checked;
+        const imageError = document.getElementById('watermark-image-dimension-error');
+
+        if (textOptions) textOptions.style.display = mode === 'text' ? 'block' : 'none';
+        if (imageOptions) imageOptions.style.display = mode === 'image' ? 'block' : 'none';
+        if (resizeHandle) resizeHandle.style.display = mode === 'image' && !centered ? 'block' : 'none';
+        if (imageError && mode !== 'image') {
+            imageError.style.display = 'none';
+        }
+    }
+
+    getWatermarkImageDimensionValidation(showError = true) {
+        const widthInput = document.getElementById('watermark-image-width');
+        const heightInput = document.getElementById('watermark-image-height');
+        const errorEl = document.getElementById('watermark-image-dimension-error');
+
+        if (!widthInput || !heightInput) {
+            return { valid: false, width: null, height: null, message: 'Width/height inputs are missing.' };
+        }
+
+        const widthRaw = String(widthInput.value || '').trim();
+        const heightRaw = String(heightInput.value || '').trim();
+        let message = '';
+
+        if (!widthRaw || !heightRaw) {
+            message = 'Width and height are required.';
+        } else {
+            const width = Number(widthRaw);
+            const height = Number(heightRaw);
+            if (!Number.isFinite(width) || !Number.isFinite(height)) {
+                message = 'Width and height must be valid numbers.';
+            } else if (width <= 0 || height <= 0) {
+                message = 'Width and height must be greater than 0.';
+            } else if (width < 1 || height < 1) {
+                message = 'Width and height are too small.';
+            } else if (width > 5000 || height > 5000) {
+                message = 'Width and height are too large (max: 5000).';
+            } else {
+                widthInput.classList.remove('watermark-input-invalid');
+                heightInput.classList.remove('watermark-input-invalid');
+                if (errorEl) errorEl.style.display = 'none';
+                return { valid: true, width, height, message: '' };
+            }
+        }
+
+        if (showError) {
+            widthInput.classList.add('watermark-input-invalid');
+            heightInput.classList.add('watermark-input-invalid');
+            if (errorEl) {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        return { valid: false, width: null, height: null, message };
+    }
+
+    async renderWatermarkPreviewPage() {
+        if (this.currentTool !== 'add-watermark') return;
+
+        const canvas = document.getElementById('watermark-preview-canvas');
+        const shell = document.getElementById('watermark-preview-shell');
+        const overlay = document.getElementById('watermark-overlay');
+        const emptyState = document.getElementById('watermark-preview-empty');
+        if (!canvas || !shell || !overlay || !emptyState) return;
+
+        const pdfFile = this.uploadedFiles[0];
+        if (!pdfFile) {
+            canvas.width = 0;
+            canvas.height = 0;
+            canvas.style.width = '100%';
+            canvas.style.height = '0px';
+            overlay.style.display = 'none';
+            emptyState.textContent = 'Upload one PDF file to preview watermark placement on page 1.';
+            emptyState.style.display = 'flex';
+            this.updateProcessButton();
+            return;
+        }
+
+        if (typeof pdfjsLib === 'undefined' || !pdfjsLib.getDocument) {
+            overlay.style.display = 'none';
+            emptyState.textContent = 'Preview is unavailable because pdf.js is not loaded.';
+            emptyState.style.display = 'flex';
+            return;
+        }
+
+        const renderToken = ++this.watermarkPreviewRenderToken;
+        try {
+            const arrayBuffer = await pdfFile.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const page = await pdf.getPage(1);
+            const baseViewport = page.getViewport({ scale: 1 });
+            const maxWidth = Math.min(1200, Math.max(320, (shell.clientWidth || 760) - 4));
+            const scale = maxWidth / Math.max(1, baseViewport.width);
+            const viewport = page.getViewport({ scale });
+
+            if (renderToken !== this.watermarkPreviewRenderToken) return;
+
+            canvas.width = Math.round(viewport.width);
+            canvas.height = Math.round(viewport.height);
+            canvas.style.width = `${Math.round(viewport.width)}px`;
+            canvas.style.height = `${Math.round(viewport.height)}px`;
+
+            const context = canvas.getContext('2d');
+            await page.render({ canvasContext: context, viewport }).promise;
+
+            if (renderToken !== this.watermarkPreviewRenderToken) return;
+
+            emptyState.style.display = 'none';
+            this.updateWatermarkOverlayFromControls(false);
+            this.updateProcessButton();
+        } catch (error) {
+            console.error('Watermark preview render failed:', error);
+            overlay.style.display = 'none';
+            emptyState.textContent = 'Could not render preview for this PDF file.';
+            emptyState.style.display = 'flex';
+        }
+    }
+
+    getWatermarkCssFontFamily(family) {
+        const map = {
+            helvetica: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+            times: "'Times New Roman', Times, serif",
+            courier: "'Courier New', Courier, monospace"
+        };
+        return map[family] || map.helvetica;
+    }
+
+    getWatermarkFontStyle(style) {
+        const map = {
+            regular: { weight: '400', style: 'normal' },
+            bold: { weight: '700', style: 'normal' },
+            italic: { weight: '400', style: 'italic' },
+            'bold-italic': { weight: '700', style: 'italic' }
+        };
+        return map[style] || map.regular;
+    }
+
+    positionWatermarkResizeHandle() {
+        const overlay = document.getElementById('watermark-overlay');
+        const resizeHandle = document.getElementById('watermark-resize-handle');
+        if (!overlay || !resizeHandle || overlay.style.display === 'none') return;
+        const left = overlay.offsetLeft + overlay.offsetWidth - 10;
+        const top = overlay.offsetTop + overlay.offsetHeight - 10;
+        resizeHandle.style.left = `${left}px`;
+        resizeHandle.style.top = `${top}px`;
+    }
+
+    setWatermarkOverlayPosition(x, y) {
+        const canvas = document.getElementById('watermark-preview-canvas');
+        const overlay = document.getElementById('watermark-overlay');
+        if (!canvas || !overlay) return;
+
+        const maxX = Math.max(0, canvas.width - overlay.offsetWidth);
+        const maxY = Math.max(0, canvas.height - overlay.offsetHeight);
+        const clampedX = Math.max(0, Math.min(maxX, x));
+        const clampedY = Math.max(0, Math.min(maxY, y));
+
+        overlay.style.left = `${clampedX}px`;
+        overlay.style.top = `${clampedY}px`;
+        overlay.dataset.positioned = 'true';
+        this.positionWatermarkResizeHandle();
+    }
+
+    updateWatermarkOverlayFromControls(forceRecenter = false) {
+        const canvas = document.getElementById('watermark-preview-canvas');
+        const overlay = document.getElementById('watermark-overlay');
+        const resizeHandle = document.getElementById('watermark-resize-handle');
+        const mode = document.querySelector('input[name="watermark-mode"]:checked')?.value || 'text';
+        if (!canvas || !overlay || !resizeHandle || canvas.width === 0 || canvas.height === 0) return;
+
+        overlay.classList.toggle('is-image', mode === 'image');
+        overlay.classList.toggle('is-text', mode === 'text');
+
+        if (mode === 'text') {
+            const text = (document.getElementById('watermark-text-input')?.value || 'CONFIDENTIAL').trim() || 'CONFIDENTIAL';
+            const fontSizeInput = parseInt(document.getElementById('watermark-text-font-size')?.value, 10);
+            const fontSize = Math.max(8, Math.min(220, Number.isFinite(fontSizeInput) ? fontSizeInput : 48));
+            const color = document.getElementById('watermark-text-color')?.value || '#ba453c';
+            const opacity = (parseInt(document.getElementById('watermark-text-opacity')?.value, 10) || 35) / 100;
+            const rotation = parseInt(document.getElementById('watermark-text-rotation')?.value, 10) || 0;
+            const family = document.getElementById('watermark-text-font-family')?.value || 'helvetica';
+            const style = document.getElementById('watermark-text-font-style')?.value || 'regular';
+            const fontMeta = this.getWatermarkFontStyle(style);
+            const cssFamily = this.getWatermarkCssFontFamily(family);
+
+            const ctx = canvas.getContext('2d');
+            ctx.font = `${fontMeta.style} ${fontMeta.weight} ${fontSize}px ${cssFamily}`;
+            const measuredWidth = Math.ceil(ctx.measureText(text).width + 16);
+            const boxWidth = Math.max(44, Math.min(canvas.width, measuredWidth));
+            const boxHeight = Math.max(22, Math.ceil(fontSize * 1.35));
+
+            overlay.innerHTML = '';
+            overlay.textContent = text;
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.width = `${boxWidth}px`;
+            overlay.style.height = `${boxHeight}px`;
+            overlay.style.color = color;
+            overlay.style.opacity = String(Math.max(0.05, Math.min(1, opacity)));
+            overlay.style.fontSize = `${fontSize}px`;
+            overlay.style.fontFamily = cssFamily;
+            overlay.style.fontWeight = fontMeta.weight;
+            overlay.style.fontStyle = fontMeta.style;
+            overlay.style.transform = `rotate(${rotation}deg)`;
+
+            const needsCentering = forceRecenter || overlay.dataset.positioned !== 'true';
+            if (needsCentering) {
+                this.setWatermarkOverlayPosition((canvas.width - boxWidth) / 2, (canvas.height - boxHeight) / 2);
+            } else {
+                this.setWatermarkOverlayPosition(overlay.offsetLeft, overlay.offsetTop);
+            }
+
+            resizeHandle.style.display = 'none';
+            return;
+        }
+
+        if (!this.watermarkImageAsset || !this.watermarkImageAsset.dataUrl) {
+            overlay.style.display = 'none';
+            resizeHandle.style.display = 'none';
+            return;
+        }
+
+        const widthInputEl = document.getElementById('watermark-image-width');
+        const heightInputEl = document.getElementById('watermark-image-height');
+        const centered = !!document.getElementById('watermark-image-centered')?.checked;
+        const opacity = (parseInt(document.getElementById('watermark-image-opacity')?.value, 10) || 35) / 100;
+        const rotation = parseInt(document.getElementById('watermark-image-rotation')?.value, 10) || 0;
+        const validation = this.getWatermarkImageDimensionValidation(true);
+        let width = validation.width;
+        let height = validation.height;
+
+        if (!validation.valid) {
+            const fallbackWidth = Number.parseFloat(overlay.dataset.lastValidWidth || '220');
+            const fallbackHeight = Number.parseFloat(overlay.dataset.lastValidHeight || '130');
+            width = Number.isFinite(fallbackWidth) ? fallbackWidth : 220;
+            height = Number.isFinite(fallbackHeight) ? fallbackHeight : 130;
+        } else {
+            overlay.dataset.lastValidWidth = String(width);
+            overlay.dataset.lastValidHeight = String(height);
+        }
+
+        overlay.innerHTML = `<img src="${this.watermarkImageAsset.dataUrl}" alt="Watermark">`;
+        overlay.style.display = 'block';
+        overlay.style.width = `${width}px`;
+        overlay.style.height = `${height}px`;
+        overlay.style.opacity = String(Math.max(0.05, Math.min(1, opacity)));
+        overlay.style.transform = `rotate(${rotation}deg)`;
+        overlay.style.fontSize = '';
+        overlay.style.color = '';
+        overlay.style.fontFamily = '';
+        overlay.style.fontWeight = '';
+        overlay.style.fontStyle = '';
+
+        if (centered || forceRecenter || overlay.dataset.positioned !== 'true') {
+            this.setWatermarkOverlayPosition((canvas.width - width) / 2, (canvas.height - height) / 2);
+        } else {
+            this.setWatermarkOverlayPosition(overlay.offsetLeft, overlay.offsetTop);
+        }
+
+        resizeHandle.style.display = centered ? 'none' : 'block';
+        this.positionWatermarkResizeHandle();
+    }
+
+    setupWatermarkInteractionEvents() {
+        const overlay = document.getElementById('watermark-overlay');
+        const canvas = document.getElementById('watermark-preview-canvas');
+        const resizeHandle = document.getElementById('watermark-resize-handle');
+        if (!overlay || !canvas || !resizeHandle) return null;
+
+        const getPoint = (event) => {
+            if (event.touches && event.touches[0]) {
+                return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+            }
+            return { x: event.clientX, y: event.clientY };
+        };
+
+        let dragState = null;
+        let resizeState = null;
+
+        const onOverlayDown = (event) => {
+            if (overlay.style.display === 'none') return;
+            if (event.target === resizeHandle || resizeHandle.contains(event.target)) return;
+            const centered = !!document.getElementById('watermark-image-centered')?.checked;
+            const mode = document.querySelector('input[name="watermark-mode"]:checked')?.value || 'text';
+            if (mode === 'image' && centered) return;
+            if (event.button !== undefined && event.button !== 0) return;
+
+            event.preventDefault();
+            const point = getPoint(event);
+            dragState = {
+                startX: point.x,
+                startY: point.y,
+                initialLeft: overlay.offsetLeft,
+                initialTop: overlay.offsetTop
+            };
+        };
+
+        const onResizeDown = (event) => {
+            const mode = document.querySelector('input[name="watermark-mode"]:checked')?.value || 'text';
+            const centered = !!document.getElementById('watermark-image-centered')?.checked;
+            if (mode !== 'image' || centered) return;
+            if (event.button !== undefined && event.button !== 0) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const point = getPoint(event);
+            resizeState = {
+                startX: point.x,
+                startY: point.y,
+                startWidth: overlay.offsetWidth,
+                startHeight: overlay.offsetHeight,
+                startLeft: overlay.offsetLeft,
+                startTop: overlay.offsetTop
+            };
+        };
+
+        const onMove = (event) => {
+            if (!dragState && !resizeState) return;
+
+            const point = getPoint(event);
+            if (dragState) {
+                event.preventDefault();
+                const nextX = dragState.initialLeft + (point.x - dragState.startX);
+                const nextY = dragState.initialTop + (point.y - dragState.startY);
+                this.setWatermarkOverlayPosition(nextX, nextY);
+            }
+
+            if (resizeState) {
+                event.preventDefault();
+                const widthInput = document.getElementById('watermark-image-width');
+                const heightInput = document.getElementById('watermark-image-height');
+                const deltaX = point.x - resizeState.startX;
+                const deltaY = point.y - resizeState.startY;
+                const nextWidth = Math.max(1, Math.min(5000, resizeState.startWidth + deltaX));
+                const nextHeight = Math.max(1, Math.min(5000, resizeState.startHeight + deltaY));
+                overlay.style.width = `${nextWidth}px`;
+                overlay.style.height = `${nextHeight}px`;
+                if (widthInput) widthInput.value = String(Math.round(nextWidth));
+                if (heightInput) heightInput.value = String(Math.round(nextHeight));
+                this.setWatermarkOverlayPosition(resizeState.startLeft, resizeState.startTop);
+                overlay.dataset.lastValidWidth = String(Math.round(nextWidth));
+                overlay.dataset.lastValidHeight = String(Math.round(nextHeight));
+                this.updateWatermarkValueLabels();
+            }
+        };
+
+        const onUp = () => {
+            dragState = null;
+            resizeState = null;
+        };
+
+        overlay.addEventListener('mousedown', onOverlayDown);
+        overlay.addEventListener('touchstart', onOverlayDown, { passive: false });
+        resizeHandle.addEventListener('mousedown', onResizeDown);
+        resizeHandle.addEventListener('touchstart', onResizeDown, { passive: false });
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchend', onUp);
+
+        return () => {
+            overlay.removeEventListener('mousedown', onOverlayDown);
+            overlay.removeEventListener('touchstart', onOverlayDown);
+            resizeHandle.removeEventListener('mousedown', onResizeDown);
+            resizeHandle.removeEventListener('touchstart', onResizeDown);
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('touchend', onUp);
+        };
+    }
+
+    async readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async convertImageFileToPngBytes(file) {
+        const objectUrl = URL.createObjectURL(file);
+        try {
+            const img = await new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = () => reject(new Error('Could not decode image file'));
+                image.src = objectUrl;
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, img.naturalWidth || img.width);
+            canvas.height = Math.max(1, img.naturalHeight || img.height);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const pngBlob = await new Promise((resolve, reject) => {
+                canvas.toBlob((blob) => {
+                    if (blob) resolve(blob);
+                    else reject(new Error('Failed to convert image to PNG'));
+                }, 'image/png');
+            });
+            return new Uint8Array(await pngBlob.arrayBuffer());
+        } finally {
+            URL.revokeObjectURL(objectUrl);
+        }
+    }
+
+    async loadWatermarkImageAsset(file) {
+        if (!file || !file.type.startsWith('image/')) {
+            throw new Error('Please select a valid image file');
+        }
+
+        const dataUrl = await this.readFileAsDataUrl(file);
+        const mimeType = file.type.toLowerCase();
+        let embedType = mimeType;
+        let embedBytes;
+
+        if (mimeType === 'image/png' || mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
+            embedBytes = new Uint8Array(await file.arrayBuffer());
+            embedType = mimeType === 'image/jpg' ? 'image/jpeg' : mimeType;
+        } else {
+            embedBytes = await this.convertImageFileToPngBytes(file);
+            embedType = 'image/png';
+        }
+
+        const dimImage = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Failed to measure image dimensions'));
+            img.src = dataUrl;
+        });
+
+        const widthInput = document.getElementById('watermark-image-width');
+        const heightInput = document.getElementById('watermark-image-height');
+        if (widthInput && heightInput) {
+            const targetWidth = 220;
+            const ratio = (dimImage.naturalWidth || 1) / Math.max(1, dimImage.naturalHeight || 1);
+            const targetHeight = Math.max(20, Math.round(targetWidth / ratio));
+            widthInput.value = String(targetWidth);
+            heightInput.value = String(targetHeight);
+            widthInput.classList.remove('watermark-input-invalid');
+            heightInput.classList.remove('watermark-input-invalid');
+            const errorEl = document.getElementById('watermark-image-dimension-error');
+            if (errorEl) errorEl.style.display = 'none';
+        }
+
+        this.watermarkImageAsset = {
+            name: file.name,
+            dataUrl,
+            embedType,
+            embedBytes
+        };
+    }
+
+    getWatermarkOverlayPlacement() {
+        const canvas = document.getElementById('watermark-preview-canvas');
+        const overlay = document.getElementById('watermark-overlay');
+        if (!canvas || !overlay || canvas.width === 0 || canvas.height === 0 || overlay.style.display === 'none') {
+            throw new Error('Watermark preview is not ready. Please upload a PDF and adjust the preview first.');
+        }
+
+        return {
+            xRatio: overlay.offsetLeft / canvas.width,
+            yRatio: overlay.offsetTop / canvas.height,
+            widthRatio: overlay.offsetWidth / canvas.width,
+            heightRatio: overlay.offsetHeight / canvas.height
+        };
+    }
+
+    getWatermarkPdfFontName(family, style) {
+        const fontMap = {
+            helvetica: {
+                regular: PDFLib.StandardFonts.Helvetica,
+                bold: PDFLib.StandardFonts.HelveticaBold,
+                italic: PDFLib.StandardFonts.HelveticaOblique,
+                'bold-italic': PDFLib.StandardFonts.HelveticaBoldOblique
+            },
+            times: {
+                regular: PDFLib.StandardFonts.TimesRoman,
+                bold: PDFLib.StandardFonts.TimesRomanBold,
+                italic: PDFLib.StandardFonts.TimesRomanItalic,
+                'bold-italic': PDFLib.StandardFonts.TimesRomanBoldItalic
+            },
+            courier: {
+                regular: PDFLib.StandardFonts.Courier,
+                bold: PDFLib.StandardFonts.CourierBold,
+                italic: PDFLib.StandardFonts.CourierOblique,
+                'bold-italic': PDFLib.StandardFonts.CourierBoldOblique
+            }
+        };
+
+        return (fontMap[family] && fontMap[family][style]) || PDFLib.StandardFonts.Helvetica;
+    }
+
+    hexToPdfRgb(hex) {
+        const clean = String(hex || '').trim();
+        const normalized = /^#([0-9a-f]{6})$/i.test(clean) ? clean.slice(1) : 'ba453c';
+        const r = parseInt(normalized.slice(0, 2), 16) / 255;
+        const g = parseInt(normalized.slice(2, 4), 16) / 255;
+        const b = parseInt(normalized.slice(4, 6), 16) / 255;
+        return PDFLib.rgb(r, g, b);
+    }
+
+    getRotatedAnchorPoint(boxX, boxY, boxWidth, boxHeight, localAnchorX, localAnchorY, rotationDeg) {
+        const centerX = boxX + boxWidth / 2;
+        const centerY = boxY + boxHeight / 2;
+        const offsetX = localAnchorX - boxWidth / 2;
+        const offsetY = localAnchorY - boxHeight / 2;
+        const theta = (rotationDeg * Math.PI) / 180;
+        const cos = Math.cos(theta);
+        const sin = Math.sin(theta);
+        return {
+            x: centerX + (offsetX * cos) - (offsetY * sin),
+            y: centerY + (offsetX * sin) + (offsetY * cos)
+        };
     }
 
     setupImageResizerOptionListeners() {
@@ -1695,7 +2493,39 @@ class PDFConverterPro {
         const fileCount = this.uploadedFiles.length;
         let enabled = fileCount > 0;
 
-        if (this.currentTool === 'compare-pdfs') {
+        if (this.currentTool === 'add-watermark') {
+            const mode = document.querySelector('input[name="watermark-mode"]:checked')?.value || 'text';
+            const hasImageAsset = mode !== 'image' || !!(this.watermarkImageAsset && this.watermarkImageAsset.embedBytes);
+            const validImageSize = mode !== 'image' || this.getWatermarkImageDimensionValidation(false).valid;
+            enabled = fileCount === 1 && hasImageAsset && validImageSize;
+
+            if (fileCount === 0) {
+                processBtn.innerHTML = `
+                    <i class="fas fa-stamp"></i>
+                    Upload 1 PDF
+                `;
+            } else if (fileCount !== 1) {
+                processBtn.innerHTML = `
+                    <i class="fas fa-stamp"></i>
+                    Select exactly 1 PDF
+                `;
+            } else if (mode === 'image' && !hasImageAsset) {
+                processBtn.innerHTML = `
+                    <i class="fas fa-stamp"></i>
+                    Select Watermark Image
+                `;
+            } else if (mode === 'image' && !validImageSize) {
+                processBtn.innerHTML = `
+                    <i class="fas fa-stamp"></i>
+                    Fix Image Size
+                `;
+            } else {
+                processBtn.innerHTML = `
+                    <i class="fas fa-stamp"></i>
+                    Apply Watermark
+                `;
+            }
+        } else if (this.currentTool === 'compare-pdfs') {
             enabled = fileCount === 2;
             if (fileCount === 0) {
                 processBtn.innerHTML = `
@@ -1843,6 +2673,9 @@ class PDFConverterPro {
                     break;
                 case 'sort-pages':
                     results = await this.sortPages();
+                    break;
+                case 'add-watermark':
+                    results = await this.addWatermark();
                     break;
                 case 'flatten-pdf':
                     results = await this.flattenPdf();
@@ -6310,6 +7143,155 @@ class PDFConverterPro {
                 console.error('Error removing pages:', error);
                 throw new Error(`Failed to remove pages from ${file.name}: ${error.message}`);
             }
+        }
+
+        return results;
+    }
+
+    // Add Watermark functionality
+    async addWatermark() {
+        if (this.uploadedFiles.length !== 1) {
+            throw new Error('Please upload exactly one PDF file');
+        }
+
+        const file = this.uploadedFiles[0];
+        const mode = document.querySelector('input[name="watermark-mode"]:checked')?.value || 'text';
+        const excludedPagesInput = document.getElementById('watermark-excluded-pages')?.value?.trim() || '';
+        const placement = this.getWatermarkOverlayPlacement();
+        const results = [];
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+            const pageCount = pdfDoc.getPageCount();
+            const excludedPages = excludedPagesInput
+                ? new Set(this.parsePageNumbers(excludedPagesInput, pageCount))
+                : new Set();
+
+            if (mode === 'text') {
+                const text = (document.getElementById('watermark-text-input')?.value || '').trim();
+                if (!text) throw new Error('Please enter watermark text');
+
+                const fontFamily = document.getElementById('watermark-text-font-family')?.value || 'helvetica';
+                const fontStyle = document.getElementById('watermark-text-font-style')?.value || 'regular';
+                const textColor = document.getElementById('watermark-text-color')?.value || '#ba453c';
+                const textOpacity = (parseInt(document.getElementById('watermark-text-opacity')?.value, 10) || 35) / 100;
+                const textRotationUi = parseInt(document.getElementById('watermark-text-rotation')?.value, 10) || 0;
+                // CSS preview rotates in screen coordinates (clockwise-positive), PDF uses cartesian (counterclockwise-positive).
+                const textRotation = -textRotationUi;
+                const previewFontSize = parseInt(document.getElementById('watermark-text-font-size')?.value, 10) || 48;
+                const previewCanvasWidth = Math.max(1, document.getElementById('watermark-preview-canvas')?.width || 1);
+                const fontSizeRatio = previewFontSize / previewCanvasWidth;
+
+                const fontName = this.getWatermarkPdfFontName(fontFamily, fontStyle);
+                const font = await pdfDoc.embedFont(fontName);
+                const color = this.hexToPdfRgb(textColor);
+
+                for (let i = 0; i < pageCount; i++) {
+                    const pageNumber = i + 1;
+                    if (excludedPages.has(pageNumber)) continue;
+
+                    const page = pdfDoc.getPage(i);
+                    const { width, height } = page.getSize();
+                    const boxWidth = placement.widthRatio * width;
+                    const boxHeight = placement.heightRatio * height;
+                    const boxX = placement.xRatio * width;
+                    const boxY = height - (placement.yRatio * height) - boxHeight;
+                    const drawFontSize = Math.max(6, fontSizeRatio * width);
+                    const textWidth = font.widthOfTextAtSize(text, drawFontSize);
+                    const localAnchorX = Math.max(0, (boxWidth - textWidth) / 2);
+                    const localAnchorY = Math.max(0, (boxHeight - drawFontSize) * 0.45);
+                    const anchorPoint = this.getRotatedAnchorPoint(
+                        boxX,
+                        boxY,
+                        boxWidth,
+                        boxHeight,
+                        localAnchorX,
+                        localAnchorY,
+                        textRotation
+                    );
+
+                    page.drawText(text, {
+                        x: anchorPoint.x,
+                        y: anchorPoint.y,
+                        font,
+                        size: drawFontSize,
+                        color,
+                        opacity: Math.max(0.05, Math.min(1, textOpacity)),
+                        rotate: PDFLib.degrees(textRotation)
+                    });
+                }
+            } else {
+                if (!this.watermarkImageAsset || !this.watermarkImageAsset.embedBytes) {
+                    throw new Error('Please upload a watermark image');
+                }
+                const sizeValidation = this.getWatermarkImageDimensionValidation(true);
+                if (!sizeValidation.valid) {
+                    throw new Error(sizeValidation.message || 'Please fix watermark image width/height values');
+                }
+
+                const imageOpacity = (parseInt(document.getElementById('watermark-image-opacity')?.value, 10) || 35) / 100;
+                const imageRotationUi = parseInt(document.getElementById('watermark-image-rotation')?.value, 10) || 0;
+                const imageRotation = -imageRotationUi;
+                const centered = !!document.getElementById('watermark-image-centered')?.checked;
+                const imageBytes = this.watermarkImageAsset.embedBytes;
+                const image = this.watermarkImageAsset.embedType === 'image/png'
+                    ? await pdfDoc.embedPng(imageBytes)
+                    : await pdfDoc.embedJpg(imageBytes);
+
+                for (let i = 0; i < pageCount; i++) {
+                    const pageNumber = i + 1;
+                    if (excludedPages.has(pageNumber)) continue;
+
+                    const page = pdfDoc.getPage(i);
+                    const { width, height } = page.getSize();
+                    const drawWidth = placement.widthRatio * width;
+                    const drawHeight = placement.heightRatio * height;
+                    const boxX = centered ? (width - drawWidth) / 2 : placement.xRatio * width;
+                    const boxY = centered
+                        ? (height - drawHeight) / 2
+                        : height - (placement.yRatio * height) - drawHeight;
+                    const anchorPoint = this.getRotatedAnchorPoint(
+                        boxX,
+                        boxY,
+                        drawWidth,
+                        drawHeight,
+                        0,
+                        0,
+                        imageRotation
+                    );
+
+                    page.drawImage(image, {
+                        x: anchorPoint.x,
+                        y: anchorPoint.y,
+                        width: drawWidth,
+                        height: drawHeight,
+                        opacity: Math.max(0.05, Math.min(1, imageOpacity)),
+                        rotate: PDFLib.degrees(imageRotation)
+                    });
+                }
+            }
+
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const outputName = `${file.name.replace(/\.pdf$/i, '')}_watermarked.pdf`;
+
+            results.push({
+                name: outputName,
+                type: 'application/pdf',
+                size: blob.size,
+                url: URL.createObjectURL(blob)
+            });
+
+            const excludedCount = excludedPages.size;
+            if (excludedCount > 0) {
+                this.showNotification(`Watermark applied. Skipped ${excludedCount} excluded ${excludedCount === 1 ? 'page' : 'pages'}.`, 'success');
+            } else {
+                this.showNotification('Watermark applied to all pages successfully.', 'success');
+            }
+        } catch (error) {
+            console.error('Error adding watermark:', error);
+            throw new Error(`Failed to add watermark: ${error.message}`);
         }
 
         return results;

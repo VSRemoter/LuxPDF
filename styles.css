@@ -276,6 +276,66 @@ ols Section */
     .tools-table { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* Home page: make "Our Tools" section larger and easier to scan */
+.home #tools.tools-section {
+    padding: 7.5rem 0 7rem;
+}
+
+.home #tools .container {
+    max-width: 1560px;
+}
+
+.home #tools .section-title {
+    font-size: 2.95rem;
+}
+
+.home #tools .search-container {
+    max-width: 960px;
+    margin-bottom: 3.25rem;
+}
+
+.home #tools #tool-search-bar {
+    font-size: 1.24rem;
+    padding: 1.34rem 1.3rem 1.34rem 4rem;
+    border-radius: 15px;
+}
+
+.home #tools .search-icon {
+    left: 1.45rem;
+    font-size: 1.42rem;
+}
+
+.home #tools .tools-table {
+    gap: 1.95rem;
+    margin-top: 1.5rem;
+}
+
+.home #tools .tools-col {
+    padding: 0.95rem 1.1rem;
+    border-radius: 13px;
+}
+
+.home #tools .tools-col-title {
+    font-size: 1.38rem;
+    margin-bottom: 0.85rem;
+}
+
+.home #tools .tools-list {
+    gap: 0.78rem;
+}
+
+.home #tools .tool-link {
+    font-size: 1.3rem;
+    gap: 0.85rem;
+    padding: 0.62rem 0.85rem;
+    min-height: 48px;
+    border-radius: 9px;
+}
+
+.home #tools .tool-link i {
+    font-size: 1.45rem;
+}
+
 /* Column color themes */
 /* 1) PDF to — Red */
 .tools-table .tools-col:nth-child(1) {
@@ -360,6 +420,20 @@ ols Section */
     border: 1px solid #10AC84;
     color: #10AC84;
     background: rgba(16, 172, 132, 0.08);
+    vertical-align: middle;
+}
+
+.tools-table .tool-link[data-tool="add-watermark"]::after {
+    content: "Beta";
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.7rem;
+    line-height: 1;
+    border-radius: 999px;
+    border: 1px solid #f59e0b;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
     vertical-align: middle;
 }
 .tool-card {
@@ -978,6 +1052,185 @@ Upload Area */
     width: 20px;
     height: 20px;
     accent-color: var(--accent-color);
+}
+
+/* Add Watermark Tool */
+.add-watermark-page .tools-section .container {
+    max-width: 1500px;
+}
+
+.add-watermark-page .tool-interface {
+    max-width: 1420px;
+}
+
+.watermark-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.add-watermark-page .watermark-layout {
+    grid-template-columns: minmax(0, 1.45fr) minmax(420px, 1fr);
+}
+
+.watermark-preview-column,
+.watermark-controls-column {
+    min-width: 0;
+}
+
+.watermark-mode-toggle {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.watermark-mode-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(186, 69, 60, 0.14);
+    border: 1px solid rgba(186, 69, 60, 0.35);
+    padding: 0.45rem 0.7rem;
+    border-radius: 8px;
+    color: var(--text-light);
+    font-size: 0.92rem;
+    cursor: pointer;
+}
+
+.watermark-mode-option input[type="radio"] {
+    accent-color: var(--accent-color);
+}
+
+.watermark-input-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.watermark-input-grid label {
+    margin-bottom: 0.45rem;
+    font-size: 0.92rem;
+}
+
+.watermark-preview-panel {
+    margin-top: 0.8rem;
+    display: flex;
+    justify-content: center;
+}
+
+.watermark-preview-shell {
+    width: 100%;
+    max-width: 100%;
+    min-height: 240px;
+    border-radius: calc(var(--border-radius) - 1px);
+    border: 1px solid var(--background-tertiary);
+    background:
+        linear-gradient(45deg, rgba(200, 214, 229, 0.06) 25%, transparent 25%) 0 0 / 20px 20px,
+        linear-gradient(-45deg, rgba(200, 214, 229, 0.06) 25%, transparent 25%) 0 0 / 20px 20px,
+        linear-gradient(45deg, transparent 75%, rgba(200, 214, 229, 0.06) 75%) 0 0 / 20px 20px,
+        linear-gradient(-45deg, transparent 75%, rgba(200, 214, 229, 0.06) 75%) 0 0 / 20px 20px,
+        rgba(15, 15, 35, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.add-watermark-page .watermark-preview-shell {
+    min-height: 320px;
+}
+
+#watermark-preview-canvas {
+    display: block;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.watermark-preview-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    color: rgba(248, 250, 252, 0.72);
+    background: rgba(15, 15, 35, 0.32);
+    font-size: 0.95rem;
+}
+
+.watermark-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed rgba(186, 69, 60, 0.7);
+    background: rgba(15, 15, 35, 0.16);
+    color: #ba453c;
+    text-align: center;
+    user-select: none;
+    cursor: grab;
+    transform-origin: center center;
+    line-height: 1.1;
+    padding: 0 0.35rem;
+}
+
+.watermark-overlay:active {
+    cursor: grabbing;
+}
+
+.watermark-overlay.is-image {
+    padding: 0;
+    background: transparent;
+}
+
+.watermark-overlay img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    pointer-events: none;
+    display: block;
+}
+
+.watermark-resize-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    z-index: 7;
+    border: 1px solid rgba(186, 69, 60, 0.95);
+    background: rgba(20, 12, 12, 0.85);
+    color: var(--text-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: nwse-resize;
+    font-size: 0.6rem;
+}
+
+.watermark-dimension-error {
+    margin-top: 0.45rem;
+    font-size: 0.88rem;
+    color: #ff6b6b;
+    font-weight: 600;
+}
+
+.watermark-input-invalid {
+    border-color: #ff6b6b !important;
+    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.15);
+}
+
+@media (max-width: 768px) {
+    .watermark-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .watermark-input-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Process Button */

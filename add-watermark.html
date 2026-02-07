@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Add text or image watermarks to PDF files for free in your browser. Open source, private, no uploads, no registration.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Watermark to PDF - Open-source, Private, Free, Unlimited, No Registration Needed</title>
+    <link rel="stylesheet" href="styles.css?v=1.1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <script defer data-domain="luxpdf.com" src="https://plausible.io/js/script.file-downloads.hash.outbound-links.js"></script>
+    <script>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+</head>
+
+<body class="add-watermark-page">
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">
+                <a href="/" style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-crown"></i>
+                    LuxPDF
+                </a>
+            </h1>
+            <nav class="nav">
+                <a href="/#tools" class="nav-link">Tools</a>
+                <a href="/support.html" class="nav-link">Support Us</a>
+                <a href="/#about" class="nav-link">About</a>
+                <a href="/#comparison" class="nav-link">Comparison</a>
+                <a href="/#faq" class="nav-link">FAQ</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="tools-section">
+            <div class="container">
+                <div class="tool-interface">
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <h4>Drag & Drop 1 PDF File Here</h4>
+                            <p>or click to select a PDF file</p>
+                            <input type="file" id="file-input" accept=".pdf">
+                        </div>
+                    </div>
+
+                    <div class="file-list" id="file-list"></div>
+                    <div class="tool-options" id="tool-options"></div>
+
+                    <div class="process-section">
+                        <button class="process-btn" id="process-btn" disabled>
+                            <i class="fas fa-stamp"></i>
+                            Apply Watermark
+                        </button>
+                    </div>
+
+                    <div class="progress-container" id="progress-container" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">Processing...</div>
+                    </div>
+
+                    <div class="results-section" id="results-section" style="display: none;">
+                        <h4>Download Results</h4>
+                        <div class="results-list" id="results-list"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="container">
+                <div class="content-block">
+                    <h3>What is LuxPDF?</h3>
+                    <p><strong>LuxPDF is an open-source, privacy-focused, and completely free suite of online PDF tools. We never upload your files to a server. Everything runs in your browser so your documents stay on your device.</strong></p>
+                </div>
+
+                <div class="content-block">
+                    <h3>Why use our Add Watermark tool?</h3>
+                    <ul>
+                        <li><strong>Text or Image Watermarks:</strong> Add a custom text watermark or upload your own image/logo watermark.</li>
+                        <li><strong>Live First-Page Preview:</strong> Place, rotate, resize, and tune opacity before applying.</li>
+                        <li><strong>Page Exclusion:</strong> Skip specific pages like covers, signatures, or inserts.</li>
+                        <li><strong>100% Private:</strong> Processing happens locally in your browser with no uploads.</li>
+                        <li><strong>Free & Unlimited:</strong> No registration and no usage caps.</li>
+                    </ul>
+                </div>
+
+                <div class="content-block">
+                    <h3>How to use Add Watermark:</h3>
+                    <ol>
+                        <li><strong>Step 1:</strong> Upload one PDF file.</li>
+                        <li><strong>Step 2:</strong> Choose <strong>Add Text</strong> or <strong>Add Image</strong>.</li>
+                        <li><strong>Step 3:</strong> Adjust watermark settings and drag it in the first-page preview.</li>
+                        <li><strong>Step 4:</strong> Optionally enter excluded pages (example: 6, 9, 12-14).</li>
+                        <li><strong>Step 5:</strong> Click <strong>Apply Watermark</strong> and download your updated PDF.</li>
+                    </ol>
+                </div>
+
+                <div class="content-block">
+                    <h3>Frequently Asked Questions (FAQ)</h3>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Are my PDFs uploaded to your servers?</span></div>
+                        <div class="faq-answer"><p>No. Everything runs client-side in your browser. We do not upload or store your files.</p></div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Can I skip watermarking specific pages?</span></div>
+                        <div class="faq-answer"><p>Yes. Use the excluded pages field to skip any page numbers or page ranges.</p></div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Does the watermark style stay consistent across pages?</span></div>
+                        <div class="faq-answer"><p>Yes. The same watermark settings and placement are applied to every non-excluded page.</p></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="related-tools-section">
+            <div class="container">
+                <h3 class="section-title">See Our Related Tools</h3>
+                <div class="related-tools-grid">
+                    <a href="/remove-metadata.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-pdf"></i>
+                            <i class="fas fa-eraser"></i>
+                        </div>
+                        <h4>Remove Metadata</h4>
+                        <p>Strip hidden metadata for extra privacy</p>
+                    </a>
+                    <a href="/flatten-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-pdf"></i>
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <h4>Flatten PDF</h4>
+                        <p>Convert forms and annotations to static content</p>
+                    </a>
+                    <a href="/add-password.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-pdf"></i>
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h4>Encrypt / Add Password</h4>
+                        <p>Protect PDF access with a password</p>
+                    </a>
+                    <a href="/compress-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon">
+                            <i class="fas fa-file-pdf"></i>
+                            <i class="fas fa-compress-arrows-alt"></i>
+                        </div>
+                        <h4>Compress PDF</h4>
+                        <p>Reduce PDF size while preserving quality</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-crown"></i>
+                    <span>LuxPDF</span>
+                </div>
+                <div class="footer-privacy">
+                    <div class="privacy-badge">
+                        <i class="fas fa-shield-alt"></i> 100% Private - Zero File Data Collection
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+                    <a href="/terms.html" class="footer-link">Terms of Service</a>
+                </div>
+                <div class="footer-social">
+                    <a href="https://github.com/VSRemoter/LuxPDF" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <a href="https://x.com/LuxPDF" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                </div>
+                <div class="copyright">
+                    © 2025 LuxPDF. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/pako@2.0.4/dist/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pica/5.1.0/pica.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <script src="script.js"></script>
+
+    <script>
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            window.pdfConverter = new PDFConverterPro();
+            window.pdfConverter.currentTool = 'add-watermark';
+            window.pdfConverter.setupToolSpecificPage();
+        });
+    </script>
+</body>
+
+</html>
