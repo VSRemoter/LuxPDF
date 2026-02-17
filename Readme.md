@@ -1,19 +1,16 @@
 # LuxPDF: Open-Source, Privacy-First PDF and Document Tools
 
-LuxPDF is a free, open-source web app for PDF, document, and image workflows. It is built to run 100% client-side in the browser so user files are processed locally rather than uploaded to an app server.
+LuxPDF is a free, open-source web app for PDF, document, and image workflows. It is built to run 100% client-side in the browser so user files are processed locally rather than uploaded to an app server. We take pride in making a PDF WebApp that is both elegant and useful.
 
 Website: https://luxpdf.com
 
-## Mission
+## Core Principles:
 
-Provide a fast, private, no-paywall alternative to online PDF suites while keeping the stack simple and open.
-
-## Key Principles
-
-- Client-side processing by default
+- Client-side processing by default for privacy
 - No required account to use tools
-- No forced file-size paywalls
+- No limitations on usage, or file size
 - Open-source codebase (AGPL-3.0)
+- Funded by donations and sponsors
 
 ## Implemented Tools (36)
 
@@ -105,13 +102,6 @@ Then open `index.html` from the local server URL.
 - Terms of Service: https://luxpdf.com/terms.html
 - Support: https://luxpdf.com/support.html
 - GitHub: https://github.com/VSRemoter/LuxPDF
-
-## Contributing
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Make changes and test affected tools/pages.
-4. Open a PR with a clear summary and screenshots for UI changes.
 
 ## License
 
