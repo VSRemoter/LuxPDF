@@ -1,61 +1,100 @@
-# LuxPDF: An Open-Source, Privacy-Focused PDF WebApp
+# LuxPDF: Open-Source, Privacy-First PDF and Document Tools
 
-LuxPDF is an Open-Source, Privacy-Focused Alternative to popular WebApps such as ILovePDF, Small PDF, PDFCandy, and FreeConvert. We offer 30+ Tools, all Free, with No Ads, No File Size Limits, Unlimited Batch Processing, No Registration Needed, & Unlimited Usage. We make it easy for anyone to modify their PDF File efficiently and with privacy in mind. We developed LuxPDF with two things in mind: Privacy and User Experience. We made LuxPDF to be completely, 100% client-side, meaning your PDF Files are never uploaded to any server ever. We can't and will never see what files you use on our WebApp. We also don't sell your data, have ads, or track you in any way. We are committed to your privacy and strive to limit tracking by avoiding unnecessary data collection wherever possible. LuxPDF was also built to be as code-efficient as possible, allowing you to convert, & modify your PDF File efficiently. We are funded by only two things: Sponsors, & Voluntary Donators. We believe this approach is the best way to fund our WebApp without having a PayWall or Ads that track your data, while being able to afford keeping our WebApp running.
+LuxPDF is a free, open-source web app for PDF, document, and image workflows. It is built to run 100% client-side in the browser so user files are processed locally rather than uploaded to an app server.
 
-## Our Mission
+Website: https://luxpdf.com
 
-We believe that simple tools like PDF WebApps should have been open-sourced, privacy-focused, and free a long time ago. That's why we're committed to making the ultimate PDF WebApp for users. There's simply no other PDF WebApp that exists that is as privacy-focused, open-sourced, free, & as user-friendly as LuxPDF. LuxPDF is an ongoing mission to create the best PDF WebApp for all your needs.
+## Mission
 
-## Features
+Provide a fast, private, no-paywall alternative to online PDF suites while keeping the stack simple and open.
 
-LuxPDF offers 30+ tools to help you manage your PDF files:
+## Key Principles
 
-**Conversion Tools**
+- Client-side processing by default
+- No required account to use tools
+- No forced file-size paywalls
+- Open-source codebase (AGPL-3.0)
 
-*   **JPEG to PDF:** Convert JPEG images to PDF documents.
-*   **PNG to PDF:** Convert PNG images to PDF documents.
-*   **TXT to PDF:** Convert text files to PDF documents.
-*   **PDF to JPEG:** Convert PDF pages to JPEG images.
-*   **PDF to PNG:** Convert PDF pages to PNG images.
-*   **PDF to TXT:** Extract text from PDF files.
-*   **HEIF/HEIC to PDF:** Convert HEIF/HEIC images to PDF documents.
-*   **HTML to PDF:** Convert HTML files to PDF documents.
-*   **Markdown to PDF:** Convert Markdown files to PDF documents.
-*   **Word to PDF:** Convert Word documents to PDF documents.
-*   **XLSX to PDF:** Convert Excel files to PDF documents.
-*   **WEBP to PDF:** Convert WEBP images to PDF documents.
-*   **SVG to PDF:** Convert SVG images to PDF documents.
-*   **WEBP to JPEG:** Convert WEBP images to JPEG format.
-*   **WEBP to PNG:** Convert WEBP images to PNG format.
-*   **SVG to PNG:** Convert SVG images to PNG format.
-*   **SVG to JPEG:** Convert SVG images to JPEG format.
-*   **PPT/PowerPoint to PDF:** Convert PowerPoint files to PDF documents.
-*   **RTF to PDF:** Convert RTF files to PDF documents.
-*   **Image Compression:** Compress images to reduce file size.
+## Implemented Tools (36)
 
+### PDF and Document Conversions
 
-**Editing and Management Tools**
+- JPEG to PDF (`jpeg-to-pdf.html`)
+- PNG to PDF (`png-to-pdf.html`)
+- TXT to PDF (`txt-to-pdf.html`)
+- HTML to PDF (`html-to-pdf.html`)
+- Markdown to PDF (`markdown-to-pdf.html`)
+- Markdown Text to PDF (`markdown-text-to-pdf.html`)
+- Word to PDF (`word-to-pdf.html`)
+- RTF to PDF (`rtf-to-pdf.html`)
+- PowerPoint to PDF (`ppt-to-pdf.html`)
+- Excel to PDF (`excel-to-pdf.html`)
+- HEIF/HEIC to PDF (`heif-to-pdf.html`)
+- WEBP to PDF (`webp-to-pdf.html`)
+- SVG to PDF (`svg-to-pdf.html`)
+- PDF to JPEG (`pdf-to-jpeg.html`)
+- PDF to PNG (`pdf-to-png.html`)
+- PDF to TXT (`pdf-to-txt.html`)
 
-*   **Compress PDF:** Reduce the file size of your PDF documents.
-*   **Merge PDF:** Combine multiple PDF files into a single document.
-*   **Split PDF:** Split a single PDF into multiple files.
-*   **Extract Pages:** Extract specific pages from a PDF file.
-*   **Remove Pages:** Remove specific pages from a PDF file.
-*   **Sort Pages:** Reorder the pages in a PDF file.
-*   **Rotate PDF:** Rotate the pages in a PDF file.
-*   **Flatten PDF:** Permanently embed form fields and annotations into page content.
-*   **Compare PDFs:** Compare two PDF files to see the differences.
+### Image Format and Image Utilities
 
-**Privacy Tools:**
+- WEBP to PNG (`webp-to-png.html`)
+- WEBP to JPEG (`webp-to-jpeg.html`)
+- SVG to PNG (`svg-to-png.html`)
+- SVG to JPEG (`svg-to-jpeg.html`)
+- Compress Image (`compress-image.html`)
+- Image Resizer (`image-resizer.html`)
 
-*   **Remove Metadata:** Remove hidden metadata from your PDF files.
-*   **Remove Password:** Remove a password from a PDF file (if you have the password).
-*   **Encrypt PDF:** Encrypt your PDF with a password. (AES-256)
-*   **Edit Metadata:** Edit the metadata of your PDF files.
+### PDF Editing and Organization
 
-## How to Use LuxPDF
+- Merge PDF (`merge-pdf.html`)
+- Split PDF (`split-pdf.html`)
+- Extract Pages (`extract-pages.html`)
+- Remove Pages (`remove-pages.html`)
+- Sort Pages (`sort-pages.html`)
+- Rotate PDF (`rotate-pdf.html`)
+- Compress PDF (`compress-pdf.html`)
+- Flatten PDF (`flatten-pdf.html`)
+- Add Watermark (`add-watermark.html`)
+- Compare PDFs (`compare-pdfs.html`)
 
-Using our site is easy. Simply visit our website and select the tool you want to use. Then, upload your file and follow the on-screen instructions. All processing is done in your browser, so your files never leave your computer.
+### PDF Security and Privacy
+
+- Add Password / Encrypt PDF (`add-password.html`)
+- Remove Password (`remove-password.html`)
+- Remove Metadata (`remove-metadata.html`)
+- Edit Metadata (`edit-metadata.html`)
+
+## Site Pages
+
+- Home (`index.html`)
+- Blog (`blog.html`)
+- Changelog (`changelog.html`)
+- Support (`support.html`)
+- Privacy Policy (`privacy.html`)
+- Terms (`terms.html`)
+- Intro Post (`introducing-luxpdf.html`)
+
+## Tech Stack
+
+- HTML, CSS, JavaScript (vanilla)
+- `pdf-lib`
+- Mozilla `pdf.js`
+- `JSZip`
+- `pica`
+- Vendor helpers in `vendor/`
+
+## Local Development
+
+This project is static-site based. You can run it with any local static file server.
+
+Example options:
+
+- VS Code Live Server
+- `python -m http.server`
+- `npx serve`
+
+Then open `index.html` from the local server URL.
 
 ## Quick Links
 
@@ -64,39 +103,16 @@ Using our site is easy. Simply visit our website and select the tool you want to
 - Changelog: https://luxpdf.com/changelog.html
 - Privacy Policy: https://luxpdf.com/privacy.html
 - Terms of Service: https://luxpdf.com/terms.html
-- Support Us: https://luxpdf.com/support.html
+- Support: https://luxpdf.com/support.html
 - GitHub: https://github.com/VSRemoter/LuxPDF
-
-
-## Tech Stack & Libraries
-
-- HTML, CSS, JavaScript (no framework required)
-- Core libraries:
-  - pdf-lib (in-browser PDF creation/editing)
-  - Mozilla PDF.js (rendering PDFs for previews/thumbnails)
-  - JSZip (ZIP packaging for multi-file downloads)
-  - Pica (high-quality image resizing)
-  - FileReader (vendor) & PPTXJS (vendor) for PPTX preprocessing
-
-## Privacy by Design
-
-- 100% client-side processing; your files never leave your device.
-- No ads, no account required, unlimited usage.
-- Minimal, privacy-respecting analytics via Plausible; see Privacy Policy for details.
 
 ## Contributing
 
-We welcome contributions from the community! Whether you're a developer, a designer, or just someone who is passionate about privacy, we'd love to have your help.
-
-Basic flow:
-
-1. Fork the repo and create a feature branch.
-2. Make changes (keep code simple and fast; avoid server-side dependencies).
-3. Open a Pull Request describing your change and which tools/pages it affects.
-4. For UI changes, include before/after screenshots if possible.
-
-Questions or ideas? Email us: admin@luxpdf.com
+1. Fork the repository.
+2. Create a feature branch.
+3. Make changes and test affected tools/pages.
+4. Open a PR with a clear summary and screenshots for UI changes.
 
 ## License
 
-LuxPDF is licensed under the GNU Affero General Public License v3.0. See the [LICENSE](LICENSE) file for more details.
+Licensed under the GNU Affero General Public License v3.0. See `LICENSE`.
