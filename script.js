@@ -22,7 +22,8 @@ const LUX_THEME_LABELS = {
     default: 'Default',
     gold: 'Gold',
     cyan: 'Cyan',
-    beige: 'Beige',
+    emerald: 'Emerald',
+    hotpink: 'Hot Pink',
     purple: 'Purple'
 };
 
@@ -70,7 +71,7 @@ function applyTheme(themeName, options = {}) {
     const { persist = true } = options;
     const resolvedTheme = isValidTheme(themeName) ? themeName : 'default';
     document.documentElement.setAttribute('data-theme', resolvedTheme);
-    document.documentElement.style.colorScheme = resolvedTheme === 'beige' ? 'light' : 'dark';
+    document.documentElement.style.colorScheme = 'dark';
     if (persist) persistTheme(resolvedTheme);
     updateThemeOptionState();
 }
@@ -86,7 +87,8 @@ function buildThemeSwitcherElement() {
             <button type="button" class="theme-option" data-theme="default"><span class="theme-swatch theme-swatch-default"></span>Default</button>
             <button type="button" class="theme-option" data-theme="gold"><span class="theme-swatch theme-swatch-gold"></span>Gold</button>
             <button type="button" class="theme-option" data-theme="cyan"><span class="theme-swatch theme-swatch-cyan"></span>Cyan</button>
-            <button type="button" class="theme-option" data-theme="beige"><span class="theme-swatch theme-swatch-beige"></span>Beige</button>
+            <button type="button" class="theme-option" data-theme="emerald"><span class="theme-swatch theme-swatch-emerald"></span>Emerald</button>
+            <button type="button" class="theme-option" data-theme="hotpink"><span class="theme-swatch theme-swatch-hotpink"></span>Hot Pink</button>
             <button type="button" class="theme-option" data-theme="purple"><span class="theme-swatch theme-swatch-purple"></span>Purple</button>
         </div>
     `;
@@ -8542,19 +8544,82 @@ reversePageOrder() {
     }
 }
 
+function setFAQItemState(item, shouldExpand, instant = false) {
+    const question = item.querySelector('.faq-question');
+    const answer = item.querySelector('.faq-answer');
+    if (!question || !answer) return;
+
+    question.setAttribute('aria-expanded', String(shouldExpand));
+
+    if (shouldExpand) {
+        item.classList.add('active');
+        const targetHeight = answer.scrollHeight;
+
+        if (instant) {
+            answer.style.height = 'auto';
+            return;
+        }
+
+        const startHeight = answer.offsetHeight;
+        answer.style.height = `${startHeight}px`;
+        requestAnimationFrame(() => {
+            answer.style.height = `${targetHeight}px`;
+        });
+        return;
+    }
+
+    const currentHeight = answer.offsetHeight || answer.scrollHeight;
+    answer.style.height = `${currentHeight}px`;
+
+    if (instant) {
+        item.classList.remove('active');
+        answer.style.height = '0px';
+        return;
+    }
+
+    // Ensure the browser commits current height before collapsing.
+    void answer.offsetHeight;
+    item.classList.remove('active');
+    answer.style.height = '0px';
+}
+
 // Initialize FAQ Accordion
 function initializeFAQAccordion() {
     const faqItems = document.querySelectorAll('.faq-item');
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     faqItems.forEach(item => {
         const question = item.querySelector('.faq-question');
-        if (question) {
-            // Prevent multiple listeners by checking for a marker
-            if (!question.dataset.faqInitialized) {
-                question.dataset.faqInitialized = 'true';
-                question.addEventListener('click', () => {
-                    item.classList.toggle('active');
-                });
-            }
+        const answer = item.querySelector('.faq-answer');
+        if (!question || !answer) return;
+
+        question.setAttribute('role', 'button');
+        question.setAttribute('tabindex', '0');
+
+        if (!answer.dataset.faqTransitionBound) {
+            answer.dataset.faqTransitionBound = 'true';
+            answer.addEventListener('transitionend', (event) => {
+                if (event.propertyName !== 'height') return;
+                if (item.classList.contains('active')) {
+                    answer.style.height = 'auto';
+                }
+            });
+        }
+
+        setFAQItemState(item, item.classList.contains('active'), true);
+
+        // Prevent multiple listeners by checking for a marker
+        if (!question.dataset.faqInitialized) {
+            question.dataset.faqInitialized = 'true';
+            question.addEventListener('click', () => {
+                setFAQItemState(item, !item.classList.contains('active'), prefersReducedMotion);
+            });
+            question.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setFAQItemState(item, !item.classList.contains('active'), prefersReducedMotion);
+                }
+            });
         }
     });
 }
@@ -8621,6 +8686,65 @@ function initializeMobileNav() {
     });
 }
 
+function initializeHeroAudienceTyping() {
+    const typingTarget = document.getElementById('hero-audience-text');
+    if (!typingTarget) return;
+
+    const audiences = [
+        'Freelancers',
+        'Students',
+        'Small Businesses',
+        'Privacy Enthusasists',
+        'Journalists'
+    ];
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        typingTarget.textContent = audiences[0];
+        return;
+    }
+
+    const typeSpeedMs = 95;
+    const deleteSpeedMs = 55;
+    const fullWordPauseMs = 1200;
+    const transitionPauseMs = 250;
+    let wordIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+
+    const tick = () => {
+        const currentWord = audiences[wordIndex];
+
+        if (isDeleting) {
+            charIndex = Math.max(charIndex - 1, 0);
+            typingTarget.textContent = currentWord.slice(0, charIndex);
+
+            if (charIndex === 0) {
+                isDeleting = false;
+                wordIndex = (wordIndex + 1) % audiences.length;
+                setTimeout(tick, transitionPauseMs);
+                return;
+            }
+
+            setTimeout(tick, deleteSpeedMs);
+            return;
+        }
+
+        charIndex = Math.min(charIndex + 1, currentWord.length);
+        typingTarget.textContent = currentWord.slice(0, charIndex);
+
+        if (charIndex === currentWord.length) {
+            isDeleting = true;
+            setTimeout(tick, fullWordPauseMs);
+            return;
+        }
+
+        setTimeout(tick, typeSpeedMs);
+    };
+
+    typingTarget.textContent = '';
+    setTimeout(tick, 300);
+}
+
 // Enable touch-friendly sorting for page thumbnails using SortableJS
 if (typeof PDFConverterPro !== 'undefined' && typeof Sortable !== 'undefined') {
     PDFConverterPro.prototype.enableThumbnailSorting = function () {
@@ -8674,6 +8798,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Main page specific initializations
         window.pdfConverter = new PDFConverterPro();
         console.log('PDF Converter Pro initialized for main page');
+        initializeHeroAudienceTyping();
 
         // Legacy support: make tool cards clickable if present
         document.querySelectorAll('.tool-card').forEach(card => {
