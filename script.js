@@ -24,6 +24,7 @@ const LUX_THEME_LABELS = {
     cyan: 'Cyan',
     emerald: 'Emerald',
     hotpink: 'Hot Pink',
+    black: 'Black',
     purple: 'Purple'
 };
 
@@ -89,6 +90,7 @@ function buildThemeSwitcherElement() {
             <button type="button" class="theme-option" data-theme="cyan"><span class="theme-swatch theme-swatch-cyan"></span>Cyan</button>
             <button type="button" class="theme-option" data-theme="emerald"><span class="theme-swatch theme-swatch-emerald"></span>Emerald</button>
             <button type="button" class="theme-option" data-theme="hotpink"><span class="theme-swatch theme-swatch-hotpink"></span>Hot Pink</button>
+            <button type="button" class="theme-option" data-theme="black"><span class="theme-swatch theme-swatch-black"></span>Black</button>
             <button type="button" class="theme-option" data-theme="purple"><span class="theme-swatch theme-swatch-purple"></span>Purple</button>
         </div>
     `;
