@@ -1600,13 +1600,7 @@ class PDFConverterPro {
                 break;
 
             case 'ppt-to-pdf':
-                optionsContainer.innerHTML = `
-                    <div class="option-group">
-                        <p style="font-size: 0.95rem; color: rgba(248, 250, 252, 0.8); margin: 0;">
-                            Orientation and quality are auto-optimized for maximum fidelity. No settings required.
-                        </p>
-                    </div>
-                `;
+                optionsContainer.innerHTML = '';
                 break;
 
             case 'split-pdf':
@@ -3420,6 +3414,21 @@ class PDFConverterPro {
     async editMetadata() {
         const results = [];
 
+        // Parse datetime-local values deterministically in local time.
+        const parseDatetimeLocalInput = (value) => {
+            if (!value || typeof value !== 'string') return null;
+            const m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+            if (!m) return null;
+            const yyyy = Number(m[1]);
+            const MM = Number(m[2]) - 1;
+            const dd = Number(m[3]);
+            const hh = Number(m[4]);
+            const mm = Number(m[5]);
+            const ss = Number(m[6] || 0);
+            const d = new Date(yyyy, MM, dd, hh, mm, ss, 0);
+            return isNaN(d.getTime()) ? null : d;
+        };
+
         // Read input values once
         const titleEl = document.getElementById('meta-title');
         const authorEl = document.getElementById('meta-author');
@@ -3458,12 +3467,12 @@ class PDFConverterPro {
                 if (creator && typeof pdfDoc.setCreator === 'function') pdfDoc.setCreator(creator);
                 if (language && typeof pdfDoc.setLanguage === 'function') pdfDoc.setLanguage(language);
                 if (creationDateStr && typeof pdfDoc.setCreationDate === 'function') {
-                    const d = new Date(creationDateStr);
-                    if (!isNaN(d.getTime())) pdfDoc.setCreationDate(d);
+                    const d = parseDatetimeLocalInput(creationDateStr);
+                    if (d) pdfDoc.setCreationDate(d);
                 }
                 if (modificationDateStr && typeof pdfDoc.setModificationDate === 'function') {
-                    const d = new Date(modificationDateStr);
-                    if (!isNaN(d.getTime())) pdfDoc.setModificationDate(d);
+                    const d = parseDatetimeLocalInput(modificationDateStr);
+                    if (d) pdfDoc.setModificationDate(d);
                 }
 
                 const bytes = await pdfDoc.save({
@@ -3510,6 +3519,12 @@ class PDFConverterPro {
 
             const byId = (id) => document.getElementById(id);
             const setVal = (id, val) => { const el = byId(id); if (el) el.value = val ?? ''; };
+            const setIfEmpty = (id, val) => {
+                const el = byId(id);
+                if (!el) return;
+                const normalized = (val ?? '').toString().trim();
+                if (!el.value && normalized) el.value = normalized;
+            };
 
             // Clear all fields first to avoid stale values
             setVal('meta-title', '');
@@ -3525,25 +3540,34 @@ class PDFConverterPro {
             // Helper to parse PDF date strings like D:YYYYMMDDHHmmSS+HH'mm
             const parsePdfDate = (s) => {
                 if (!s || typeof s !== 'string') return null;
-                let str = s.startsWith('D:') ? s.slice(2) : s;
-                const yyyy = str.slice(0, 4);
-                const mm = str.slice(4, 6) || '01';
-                const dd = str.slice(6, 8) || '01';
-                const HH = str.slice(8, 10) || '00';
-                const MM = str.slice(10, 12) || '00';
-                const SS = str.slice(12, 14) || '00';
-                let tz = 'Z';
-                const tzMatch = str.match(/([Zz]|[+\-]\d{2}'?\d{2}?)/);
-                if (tzMatch) {
-                    const t = tzMatch[1];
-                    if (t.toUpperCase() === 'Z') tz = 'Z';
-                    else {
-                        const sign = t[0];
-                        const th = t.slice(1, 3);
-                        const tm = t.slice(-2);
+                const str = (s.startsWith('D:') ? s.slice(2) : s).trim();
+                const core = str.match(/^(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?/);
+                if (!core) return null;
+
+                const yyyy = core[1];
+                const mm = core[2] || '01';
+                const dd = core[3] || '01';
+                const HH = core[4] || '00';
+                const MM = core[5] || '00';
+                const SS = core[6] || '00';
+
+                // PDF timezone variants:
+                // Z, +HH'mm', -HH'mm', +HHmm, -HHmm, +HH, -HH
+                let tz = '';
+                const tzTail = str.slice(core[0].length).trim();
+                if (/^[Zz]$/.test(tzTail)) {
+                    tz = 'Z';
+                } else {
+                    const off = tzTail.match(/^([+\-])(\d{2})(?:'?(\d{2})'?)?/);
+                    if (off) {
+                        const sign = off[1];
+                        const th = off[2];
+                        const tm = off[3] || '00';
                         tz = `${sign}${th}:${tm}`;
                     }
                 }
+
+                // If timezone is absent, interpret as local time (per common PDF writer behavior).
                 const iso = `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}${tz}`;
                 const d = new Date(iso);
                 return isNaN(d.getTime()) ? null : d;
@@ -3577,28 +3601,35 @@ class PDFConverterPro {
             }
 
             // Strings
-            if (typeof pdfDoc.getTitle === 'function') setVal('meta-title', pdfDoc.getTitle() || '');
-            if (typeof pdfDoc.getAuthor === 'function') setVal('meta-author', pdfDoc.getAuthor() || '');
-            if (typeof pdfDoc.getSubject === 'function') setVal('meta-subject', pdfDoc.getSubject() || '');
-            if (typeof pdfDoc.getProducer === 'function') setVal('meta-producer', pdfDoc.getProducer() || '');
-            if (typeof pdfDoc.getCreator === 'function') setVal('meta-creator', pdfDoc.getCreator() || '');
-            if (typeof pdfDoc.getLanguage === 'function' && !byId('meta-language').value) setVal('meta-language', pdfDoc.getLanguage() || '');
+            if (typeof pdfDoc.getTitle === 'function') setIfEmpty('meta-title', pdfDoc.getTitle() || '');
+            if (typeof pdfDoc.getAuthor === 'function') setIfEmpty('meta-author', pdfDoc.getAuthor() || '');
+            if (typeof pdfDoc.getSubject === 'function') setIfEmpty('meta-subject', pdfDoc.getSubject() || '');
+            if (typeof pdfDoc.getProducer === 'function') setIfEmpty('meta-producer', pdfDoc.getProducer() || '');
+            if (typeof pdfDoc.getCreator === 'function') setIfEmpty('meta-creator', pdfDoc.getCreator() || '');
+            {
+                const langEl = byId('meta-language');
+                if (typeof pdfDoc.getLanguage === 'function' && langEl && !langEl.value) {
+                    setIfEmpty('meta-language', pdfDoc.getLanguage() || '');
+                }
+            }
 
             // Keywords (array)
             if (typeof pdfDoc.getKeywords === 'function') {
                 const kws = pdfDoc.getKeywords();
-                if (Array.isArray(kws)) setVal('meta-keywords', kws.join(', '));
-                else if (typeof kws === 'string') setVal('meta-keywords', kws);
+                if (Array.isArray(kws)) setIfEmpty('meta-keywords', kws.join(', '));
+                else if (typeof kws === 'string') setIfEmpty('meta-keywords', kws);
             }
 
             // Dates
-            if (typeof pdfDoc.getCreationDate === 'function' && !byId('meta-creation-date').value) {
+            const creationDateEl = byId('meta-creation-date');
+            if (typeof pdfDoc.getCreationDate === 'function' && creationDateEl && !creationDateEl.value) {
                 const cd = pdfDoc.getCreationDate();
                 if (cd instanceof Date && !isNaN(cd.getTime())) {
                     setVal('meta-creation-date', this.formatDateForDatetimeLocal(cd));
                 }
             }
-            if (typeof pdfDoc.getModificationDate === 'function' && !byId('meta-modification-date').value) {
+            const modificationDateEl = byId('meta-modification-date');
+            if (typeof pdfDoc.getModificationDate === 'function' && modificationDateEl && !modificationDateEl.value) {
                 const md = pdfDoc.getModificationDate();
                 if (md instanceof Date && !isNaN(md.getTime())) {
                     setVal('meta-modification-date', this.formatDateForDatetimeLocal(md));
@@ -5218,6 +5249,81 @@ class PDFConverterPro {
         });
     }
 
+    getPptSlideSize(slide) {
+        const rect = slide && slide.getBoundingClientRect ? slide.getBoundingClientRect() : null;
+        const widthPx = Math.max(
+            1,
+            Math.round((rect && rect.width) || slide?.scrollWidth || slide?.clientWidth || 1200)
+        );
+        const heightPx = Math.max(
+            1,
+            Math.round((rect && rect.height) || slide?.scrollHeight || slide?.clientHeight || 675)
+        );
+        // CSS px are 1/96 inch; PDF points are 1/72 inch.
+        const pxToPt = 72 / 96;
+        return {
+            widthPx,
+            heightPx,
+            widthPt: Math.max(1, widthPx * pxToPt),
+            heightPt: Math.max(1, heightPx * pxToPt),
+            orientation: widthPx >= heightPx ? 'l' : 'p'
+        };
+    }
+
+    downscaleCanvasIfNeeded(canvas, maxSidePx = 2800) {
+        const width = canvas?.width || 0;
+        const height = canvas?.height || 0;
+        const longestSide = Math.max(width, height);
+        if (!longestSide || longestSide <= maxSidePx) return canvas;
+
+        const ratio = maxSidePx / longestSide;
+        const targetWidth = Math.max(1, Math.round(width * ratio));
+        const targetHeight = Math.max(1, Math.round(height * ratio));
+        const out = document.createElement('canvas');
+        out.width = targetWidth;
+        out.height = targetHeight;
+        const ctx = out.getContext('2d');
+        if (!ctx) return canvas;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+        return out;
+    }
+
+    canvasHasTransparencySampled(canvas) {
+        const width = canvas?.width || 0;
+        const height = canvas?.height || 0;
+        if (!width || !height) return false;
+
+        try {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (!ctx) return false;
+
+            const sampleCols = 24;
+            const sampleRows = 24;
+            const stepX = Math.max(1, Math.floor(width / sampleCols));
+            const stepY = Math.max(1, Math.floor(height / sampleRows));
+
+            for (let y = 0; y < height; y += stepY) {
+                for (let x = 0; x < width; x += stepX) {
+                    const alpha = ctx.getImageData(x, y, 1, 1).data[3];
+                    if (alpha < 255) return true;
+                }
+            }
+        } catch (_) {
+            // Ignore read failures and assume opaque.
+        }
+        return false;
+    }
+
+    getPptJpegQuality(canvas) {
+        const pixels = (canvas?.width || 0) * (canvas?.height || 0);
+        const megaPixels = pixels / 1000000;
+        if (megaPixels <= 2.5) return 0.88;
+        if (megaPixels <= 5.5) return 0.84;
+        return 0.8;
+    }
+
     // Convert PPTX to PDF using PPTXjs + html2canvas + jsPDF
     async convertPptxToPdf() {
         await this.ensureHtmlRenderingLibs();
@@ -5225,61 +5331,8 @@ class PDFConverterPro {
         const results = [];
 
         const { jsPDF } = window.jspdf;
-        // Always high quality for maximum fidelity
-        const h2cScale = 3;
-
-        // Helpers: parse CSS color and determine effective slide background color
-        const parseCssColorToRgb = (colorStr) => {
-            if (!colorStr || typeof colorStr !== 'string') return null;
-            colorStr = colorStr.trim();
-            // Hex formats
-            if (colorStr[0] === '#') {
-                let r, g, b;
-                if (colorStr.length === 4) { // #rgb
-                    r = parseInt(colorStr[1] + colorStr[1], 16);
-                    g = parseInt(colorStr[2] + colorStr[2], 16);
-                    b = parseInt(colorStr[3] + colorStr[3], 16);
-                    return { r, g, b };
-                } else if (colorStr.length === 7) { // #rrggbb
-                    r = parseInt(colorStr.slice(1, 3), 16);
-                    g = parseInt(colorStr.slice(3, 5), 16);
-                    b = parseInt(colorStr.slice(5, 7), 16);
-                    return { r, g, b };
-                }
-                return null;
-            }
-            // rgb/rgba
-            const m = colorStr.match(/rgba?\(([^)]+)\)/i);
-            if (m) {
-                const parts = m[1].split(',').map(s => s.trim());
-                if (parts.length >= 3) {
-                    const r = Math.max(0, Math.min(255, parseInt(parts[0], 10)));
-                    const g = Math.max(0, Math.min(255, parseInt(parts[1], 10)));
-                    const b = Math.max(0, Math.min(255, parseInt(parts[2], 10)));
-                    return { r, g, b };
-                }
-            }
-            return null;
-        };
-
-        const getEffectiveSlideBgColor = (el) => {
-            let node = el;
-            try {
-                while (node && node !== document.body) {
-                    const cs = window.getComputedStyle(node);
-                    if (cs) {
-                        const bgImg = cs.backgroundImage;
-                        // If a background image/gradient is present, don't enforce a color; let html2canvas render it.
-                        if (bgImg && bgImg !== 'none') return null;
-                        const bg = cs.backgroundColor;
-                        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
-                    }
-                    node = node.parentElement;
-                }
-            } catch (_) { /* ignore */ }
-            // Fallback to white when nothing specified
-            return '#ffffff';
-        };
+        // Keep render resolution high enough for text while avoiding massive PDFs.
+        const h2cScale = Math.min(2.2, Math.max(1.8, window.devicePixelRatio || 2));
 
         for (const file of this.uploadedFiles) {
             // Guard: PPTXjs supports .pptx; legacy .ppt is not supported reliably
@@ -5293,9 +5346,36 @@ class PDFConverterPro {
             root.style.position = 'fixed';
             root.style.left = '-10000px';
             root.style.top = '0';
-            root.style.width = '1200px';
-            root.style.background = '#ffffff';
+            root.style.width = 'auto';
+            root.style.background = 'transparent';
+            root.style.padding = '0';
+            root.style.margin = '0';
             // Do not hide with visibility/opacity to allow proper layout calculations
+
+            // Isolate slide rendering from app styles to keep PPT styling faithful.
+            const isolationStyle = document.createElement('style');
+            isolationStyle.textContent = `
+                #slide-resolte-contaniner, #slide-resolte-contaniner * {
+                    box-sizing: content-box !important;
+                }
+                #slide-resolte-contaniner img {
+                    max-width: none !important;
+                    max-height: none !important;
+                }
+                #slide-resolte-contaniner .slide,
+                #slide-resolte-contaniner .pptxjs-slide {
+                    margin: 0 !important;
+                    border: 0 !important;
+                    border-radius: 0 !important;
+                    box-shadow: none !important;
+                }
+                #slide-resolte-contaniner #all_slides_warpper {
+                    transform: none !important;
+                    height: auto !important;
+                }
+            `;
+            root.appendChild(isolationStyle);
+
             const renderDiv = document.createElement('div');
             root.appendChild(renderDiv);
             document.body.appendChild(root);
@@ -5343,7 +5423,7 @@ class PDFConverterPro {
                         (window.jQuery || pptxJQ)(renderDiv).empty();
                         (window.jQuery || pptxJQ)(renderDiv).pptxToHtml({
                             fileInputId: input.id,
-                            slidesScale: '130%',
+                            slidesScale: '',
                             slideMode: false,
                             keyBoardShortCut: false,
                             mediaProcess: true,
@@ -5372,6 +5452,7 @@ class PDFConverterPro {
                         }
 
                         await this.waitForPptxRender(root, 90000);
+                        await this.waitForRenderedContentAssets(root, 30000);
                         await this.ensureAllSlideImagesLoaded(root, 30000);
                         rendered = true;
                     } catch (eFI) {
@@ -5385,12 +5466,13 @@ class PDFConverterPro {
                     try {
                         (window.jQuery || pptxJQ)(renderDiv).pptxToHtml({
                             pptxFileUrl: objectUrl,
-                            slidesScale: '130%',
+                            slidesScale: '',
                             slideMode: false,
                             keyBoardShortCut: false,
                             mediaProcess: true,
                         });
                         await this.waitForPptxRender(root, 90000);
+                        await this.waitForRenderedContentAssets(root, 30000);
                         await this.ensureAllSlideImagesLoaded(root, 30000);
                         rendered = true;
                     } finally {
@@ -5403,63 +5485,56 @@ class PDFConverterPro {
                     throw new Error('No slides found after rendering (PPTX load may have failed)');
                 }
 
-                // Determine first page orientation from first slide aspect ratio
-                const firstSlide = slides[0];
-                const firstRect = (firstSlide && firstSlide.getBoundingClientRect) ? firstSlide.getBoundingClientRect() : null;
-                const firstW = firstRect ? Math.max(1, firstRect.width) : (firstSlide.scrollWidth || firstSlide.clientWidth || 1200);
-                const firstH = firstRect ? Math.max(1, firstRect.height) : (firstSlide.scrollHeight || firstSlide.clientHeight || 675);
-                const firstOrientation = firstW >= firstH ? 'l' : 'p';
+                const firstSize = this.getPptSlideSize(slides[0]);
+                // Match native slide dimensions instead of forcing A4, which avoids letterboxing and preserves layout.
+                const pdf = new jsPDF({
+                    orientation: firstSize.orientation,
+                    unit: 'pt',
+                    format: [firstSize.widthPt, firstSize.heightPt],
+                    compress: true,
+                    putOnlyUsedFonts: true
+                });
 
-                // Prepare PDF with first slide orientation
-                const pdf = new jsPDF({ orientation: firstOrientation, unit: 'pt', format: 'a4' });
                 let pageIndex = 0;
                 for (const slide of slides) {
-                    // Compute slide aspect and choose orientation per slide
-                    let rect = slide.getBoundingClientRect ? slide.getBoundingClientRect() : null;
-                    let sw = rect ? Math.max(1, rect.width) : (slide.scrollWidth || slide.clientWidth || 1200);
-                    let sh = rect ? Math.max(1, rect.height) : (slide.scrollHeight || slide.clientHeight || 675);
-                    const pageOrientation = sw >= sh ? 'l' : 'p';
+                    const size = this.getPptSlideSize(slide);
                     if (pageIndex > 0) {
-                        pdf.addPage('a4', pageOrientation);
+                        pdf.addPage([size.widthPt, size.heightPt], size.orientation);
                     }
-                    // Current page size
-                    let pageWidth = pdf.internal.pageSize.getWidth();
-                    let pageHeight = pdf.internal.pageSize.getHeight();
-
-                    // Determine effective solid background color (for letterboxing) without overriding slide-rendered backgrounds
-                    const bgForPage = getEffectiveSlideBgColor(slide); // null if background image/gradient
 
                     // Render slide to canvas preserving its own background (including images/gradients)
-                    const canvas = await window.html2canvas(slide, {
+                    const rawCanvas = await window.html2canvas(slide, {
                         backgroundColor: null, // do not force a solid color; keep actual background
                         scale: h2cScale,
                         useCORS: true,
                         logging: false,
-                        windowWidth: slide.scrollWidth || slide.clientWidth,
-                        windowHeight: slide.scrollHeight || slide.clientHeight,
+                        width: size.widthPx,
+                        height: size.heightPx,
+                        windowWidth: size.widthPx,
+                        windowHeight: size.heightPx,
+                        scrollX: 0,
+                        scrollY: 0,
                     });
 
-                    // Paint page background color first (covers any margins/letterboxing)
-                    if (bgForPage) {
-                        const rgb = parseCssColorToRgb(bgForPage);
-                        if (rgb) {
-                            try {
-                                pdf.setFillColor(rgb.r, rgb.g, rgb.b);
-                                pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-                            } catch (_) { /* ignore color errors */ }
-                        }
-                    }
+                    const canvas = this.downscaleCanvasIfNeeded(rawCanvas, 2800);
+                    const pageWidth = pdf.internal.pageSize.getWidth();
+                    const pageHeight = pdf.internal.pageSize.getHeight();
+                    const hasTransparency = this.canvasHasTransparencySampled(canvas);
+                    const useJpeg = !hasTransparency;
+                    const imgData = useJpeg
+                        ? canvas.toDataURL('image/jpeg', this.getPptJpegQuality(canvas))
+                        : canvas.toDataURL('image/png');
 
-                    const imgData = canvas.toDataURL('image/png');
-                    const imgWidth = canvas.width;
-                    const imgHeight = canvas.height;
-                    const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-                    const drawWidth = imgWidth * ratio;
-                    const drawHeight = imgHeight * ratio;
-                    const dx = (pageWidth - drawWidth) / 2;
-                    const dy = (pageHeight - drawHeight) / 2;
-
-                    pdf.addImage(imgData, 'PNG', dx, dy, drawWidth, drawHeight, undefined, 'FAST');
+                    pdf.addImage(
+                        imgData,
+                        useJpeg ? 'JPEG' : 'PNG',
+                        0,
+                        0,
+                        pageWidth,
+                        pageHeight,
+                        undefined,
+                        useJpeg ? 'MEDIUM' : 'FAST'
+                    );
                     pageIndex++;
                 }
 
