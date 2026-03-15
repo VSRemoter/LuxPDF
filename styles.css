@@ -981,6 +981,7 @@ ols Section */
 }
 
 .tools-table .tool-link[data-tool="markdown-to-pdf"]::after,
+.tools-table .tool-link[data-tool="epub-to-pdf"]::after,
 .tools-table .tool-link[data-tool="markdown-text-to-pdf"]::after,
 .tools-table .tool-link[data-tool="image-resizer"]::after {
     content: "New!";
@@ -1503,9 +1504,16 @@ Upload Area */
     min-width: 0;
 }
 
+.file-details {
+    min-width: 0;
+    max-width: min(100%, 44ch);
+    overflow: hidden;
+}
+
 .file-icon {
     font-size: 1.5rem;
     color: var(--accent-color);
+    flex-shrink: 0;
 }
 
 .file-details h5 {

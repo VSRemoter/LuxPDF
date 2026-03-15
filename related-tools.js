@@ -500,6 +500,32 @@ const RELATED_TOOLS_CONFIG = {
             icon: '<i class="fas fa-file-pdf"></i><i class="fas fa-plus"></i><i class="fas fa-file-pdf"></i>'
         }
     ],
+    'epub-to-pdf': [
+        {
+            name: 'Word to PDF',
+            url: '/word-to-pdf.html',
+            description: 'Convert DOCX documents to PDF with high-fidelity rendering',
+            icon: '<i class="fas fa-file-word"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'HTML to PDF',
+            url: '/html-to-pdf.html',
+            description: 'Render HTML documents into PDF files',
+            icon: '<i class="fas fa-code"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'Markdown to PDF',
+            url: '/markdown-to-pdf.html',
+            description: 'Convert Markdown files to PDF documents',
+            icon: '<i class="fab fa-markdown"></i><i class="fas fa-arrow-right"></i><i class="fas fa-file-pdf"></i>'
+        },
+        {
+            name: 'Merge PDF',
+            url: '/merge-pdf.html',
+            description: 'Combine multiple PDF files into one',
+            icon: '<i class="fas fa-file-pdf"></i><i class="fas fa-plus"></i><i class="fas fa-file-pdf"></i>'
+        }
+    ],
     'markdown-text-to-pdf': [
         {
             name: 'Markdown to PDF',
