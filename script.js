@@ -3000,10 +3000,16 @@ class PDFConverterPro {
                         ${detailsMarkup}
                     </div>
                 </div>
-                <button class="download-btn" onclick="window.pdfConverter.downloadResult('${result.url}', '${result.name}')">
+                <button class="download-btn" data-url="${result.url}" data-filename="${result.name}">
                     <i class="fas fa-download"></i> Download
                 </button>
             `;
+
+            resultItem.querySelector('.download-btn').addEventListener('click', (e) => {
+                const downloadBtn = e.currentTarget;
+                window.pdfConverter.downloadResult(downloadBtn.dataset.url, downloadBtn.dataset.filename);
+            });
+
             resultsList.appendChild(resultItem);
         });
 
