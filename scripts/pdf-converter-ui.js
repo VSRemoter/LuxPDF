@@ -645,7 +645,13 @@ Object.assign(PDFConverterPro.prototype, {
         }
 
         let filesAdded = 0;
+        let skippedCompareFiles = 0;
         for (const file of incomingFiles) {
+            if (this.currentTool === 'compare-pdfs' && this.uploadedFiles.length >= 2) {
+                skippedCompareFiles++;
+                continue;
+            }
+
             if (await this.validateFile(file)) {
                 // Check if file already exists to prevent duplicates
                 const existingFile = this.uploadedFiles.find(f =>
@@ -655,6 +661,8 @@ Object.assign(PDFConverterPro.prototype, {
                 if (!existingFile) {
                     this.uploadedFiles.push(file);
                     filesAdded++;
+                } else if (this.currentTool === 'compare-pdfs' && this.uploadedFiles.length >= 2) {
+                    skippedCompareFiles++;
                 }
             }
         }
@@ -665,6 +673,10 @@ Object.assign(PDFConverterPro.prototype, {
         }
         this.updateProcessButton();
         this.resetFileInput();
+
+        if (this.currentTool === 'compare-pdfs' && skippedCompareFiles > 0) {
+            this.showNotification('Compare PDFs only supports exactly 2 PDF files. Extra files were not added.', 'info');
+        }
 
         // Show reordering tip for multiple files
         if (this.uploadedFiles.length > 1) {

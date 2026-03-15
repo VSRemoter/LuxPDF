@@ -1502,6 +1502,10 @@ Object.assign(PDFConverterPro.prototype, {
 
     async processFiles() {
         if (this.uploadedFiles.length === 0) return;
+        if (this.currentTool === 'compare-pdfs' && this.uploadedFiles.length !== 2) {
+            this.showError('Please upload exactly 2 PDF files to compare.');
+            return;
+        }
 
         this.showProgress();
         this.clearResults();
