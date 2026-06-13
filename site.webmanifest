@@ -1,11 +1,11 @@
 {
-    "name": "LuxPDF - Free PDF Tools",
-    "short_name": "LuxPDF",
+    "name": "PDFSwift - Free PDF Tools",
+    "short_name": "PDFSwift",
     "description": "Free, private, and unlimited PDF conversion and modification tools. Convert, merge, split, and compress PDFs with complete privacy.",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#140c0c",
-    "theme_color": "#ba453c",
+    "background_color": "#f8fbff",
+    "theme_color": "#2563eb",
     "icons": [
         {
             "src": "/favicon-512.png",

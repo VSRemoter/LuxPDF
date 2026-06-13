@@ -23,7 +23,7 @@
 }
 
 :root {
-    /* LuxPDF Theme: Obsidian-inspired palette */
+    /* PDFSwift Theme: Obsidian-inspired palette */
     --primary-color: #ba453c;           /* Primary actions / badges */
     --primary-dark: #140c0c;            /* Dark base */
     --primary-light: #cfcdc2;           /* Light accent for gradients */
@@ -550,8 +550,34 @@ body {
     gap: 0.5rem;
 }
 
-.logo i {
+.logo i,
+.footer-logo i {
     color: var(--accent-color);
+}
+
+.brand-mark {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 1.15em;
+    height: 1.15em;
+    flex: 0 0 auto;
+    color: var(--accent-color);
+}
+
+.brand-mark .fa-file-pdf {
+    font-size: 1em;
+}
+
+.brand-mark .fa-bolt {
+    position: absolute;
+    right: -0.08em;
+    bottom: -0.1em;
+    font-size: 0.52em;
+    color: var(--text-primary);
+    background: var(--accent-color);
+    border-radius: 999px;
+    padding: 0.18em;
 }
 
 .nav {
@@ -1293,7 +1319,7 @@ ols Section */
     padding: 2rem;
 }
 
-/* 
+/*
 Upload Area */
 .upload-area {
     border: 2px dashed var(--background-tertiary);
@@ -2360,10 +2386,6 @@ Upload Area */
     color: var(--text-primary);
     font-size: 1.5rem;
     font-weight: 700;
-}
-
-.footer-logo i {
-    color: var(--accent-color);
 }
 
 .footer-privacy {

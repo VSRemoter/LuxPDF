@@ -1,6 +1,6 @@
-# LuxPDF: Open-Source, Privacy-First PDF and Document Tools
+# PDFSwift: Open-Source, Privacy-First PDF and Document Tools
 
-LuxPDF is a free, open-source web app for PDF, document, and image workflows. It is built to run 100% client-side in the browser so user files are processed locally rather than uploaded to an app server. We take pride in making a PDF WebApp that is both elegant and useful.
+PDFSwift is a free, open-source web app for PDF, document, and image workflows. It is built to run 100% client-side in the browser so user files are processed locally rather than uploaded to an app server. We take pride in making a PDF WebApp that is both elegant and useful.
 
 Website: https://luxpdf.com
 
