@@ -5,12 +5,13 @@
     }
     window.__luxpdfSplitScriptsLoaded = true;
 
-    const version = '1.4';
+    const version = '1.6';
     const sources = [
         'scripts/luxpdf-theme.js',
         'scripts/pdf-converter-base.js',
         'scripts/pdf-converter-ui.js',
         'scripts/pdf-converter-workflows.js',
+        'scripts/pdf-converter-capture.js',
         'scripts/pdf-converter-converters-a.js',
         'scripts/pdf-converter-converters-b.js',
         'scripts/pdf-converter-tools.js',

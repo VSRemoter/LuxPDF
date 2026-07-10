@@ -32,7 +32,8 @@
         var rtl_langs_array = ["he-IL", "ar-AE", "ar-SA", "dv-MV", "fa-IR","ur-PK"]
 
         var slideFactor = 96 / 914400;
-        var fontSizeFactor = 4 / 3.2;
+        // PowerPoint text sizes are points; CSS layout uses 96 px per inch.
+        var fontSizeFactor = 96 / 72;
         ////////////////////// 
         var slideWidth = 0;
         var slideHeight = 0;
@@ -7925,9 +7926,6 @@
 
                 // TextBody
                 if (node["p:txBody"] !== undefined && (isUserDrawnBg === undefined || isUserDrawnBg === true)) {
-                    if (type != "diagram" && type != "textBox") {
-                        type = "shape";
-                    }
                     result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, idx, warpObj); //type='shape'
                 }
                 result += "</div>";
@@ -8185,9 +8183,6 @@
 
                 // TextBody
                 if (node["p:txBody"] !== undefined && (isUserDrawnBg === undefined || isUserDrawnBg === true)) {
-                    if (type != "diagram" && type != "textBox") {
-                        type = "shape";
-                    }
                     result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, idx, warpObj); //type=shape
                 }
                 result += "</div>";
@@ -8566,6 +8561,29 @@
         }
 
         var is_first_br = false;
+        function getTextBodyInsets(textBodyNode, slideLayoutSpNode, slideMasterSpNode) {
+            var bodyNodes = [
+                getTextByPathList(textBodyNode, ["a:bodyPr"]),
+                getTextByPathList(slideLayoutSpNode, ["p:txBody", "a:bodyPr"]),
+                getTextByPathList(slideMasterSpNode, ["p:txBody", "a:bodyPr"])
+            ];
+            var readInset = function (name) {
+                for (var i = 0; i < bodyNodes.length; i++) {
+                    var value = getTextByPathList(bodyNodes[i], ["attrs", name]);
+                    if (value !== undefined && !isNaN(parseInt(value))) {
+                        return parseInt(value) * slideFactor;
+                    }
+                }
+                return 0;
+            };
+            return {
+                left: readInset("lIns"),
+                right: readInset("rIns"),
+                top: readInset("tIns"),
+                bottom: readInset("bIns")
+            };
+        }
+
         function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, idx, warpObj, tbl_col_width) {
             var text = "";
             var slideMasterTextStyles = warpObj["slideMasterTextStyles"];
@@ -8577,6 +8595,7 @@
             //          <a:bodyPr wrap="square" rtlCol="1">
 
             var pFontStyle = getTextByPathList(spNode, ["p:style", "a:fontRef"]);
+            var textInsets = getTextBodyInsets(textBodyNode, slideLayoutSpNode, slideMasterSpNode);
             //console.log("genTextBody spNode: ", getTextByPathList(spNode,["p:spPr","a:xfrm","a:ext"]));
 
             //var lstStyle = textBodyNode["a:lstStyle"];
@@ -8640,10 +8659,15 @@
                 //console.log("textBodyNode: ", textBodyNode["a:lstStyle"])
                 var prg_width_node = getTextByPathList(spNode, ["p:spPr", "a:xfrm", "a:ext", "attrs", "cx"]);
                 var prg_height_node;// = getTextByPathList(spNode, ["p:spPr", "a:xfrm", "a:ext", "attrs", "cy"]);
-                var sld_prg_width = ((prg_width_node !== undefined) ? ("width:" + (parseInt(prg_width_node) * slideFactor) + "px;") : "width:inherit;");
+                var shapeWidthPx = (prg_width_node !== undefined) ? parseInt(prg_width_node) * slideFactor : undefined;
+                var usableWidthPx = (shapeWidthPx !== undefined) ? Math.max(0, shapeWidthPx - textInsets.left - textInsets.right) : undefined;
+                var sld_prg_width = ((usableWidthPx !== undefined) ? ("width:" + usableWidthPx + "px;") : "width:inherit;");
                 var sld_prg_height = ((prg_height_node !== undefined) ? ("height:" + (parseInt(prg_height_node) * slideFactor) + "px;") : "");
                 var prg_dir = getPregraphDir(pNode, textBodyNode, idx, type, warpObj);
-                text += "<div style='display: flex;" + sld_prg_width + sld_prg_height + "' class='slide-prgrph " + getHorizontalAlign(pNode, textBodyNode, idx, type, prg_dir, warpObj) + " " +
+                var insetStyle = "margin-left:" + textInsets.left + "px;margin-right:" + textInsets.right + "px;";
+                if (i === 0) insetStyle += "margin-top:" + textInsets.top + "px;";
+                if (i === apNode.length - 1) insetStyle += "margin-bottom:" + textInsets.bottom + "px;";
+                text += "<div style='display: flex;" + sld_prg_width + sld_prg_height + insetStyle + "' class='slide-prgrph " + getHorizontalAlign(pNode, textBodyNode, idx, type, prg_dir, warpObj) + " " +
                     prg_dir + " " + cssName + "' >";
                 var buText_ary = genBuChar(pNode, i, spNode, textBodyNode, pFontStyle, idx, type, warpObj);
                 var isBullate = (buText_ary[0] !== undefined && buText_ary[0] !== null && buText_ary[0] != "" ) ? true : false;
@@ -8656,6 +8680,7 @@
                 if (prg_width_node === undefined && tbl_col_width !== undefined && prg_width_node != 0){
                     //sorce : table text
                     prg_width_node = tbl_col_width;
+                    usableWidthPx = Math.max(0, parseInt(prg_width_node) * slideFactor - textInsets.left - textInsets.right);
                 }
 
                 var prgrph_text = "";
@@ -8687,7 +8712,7 @@
                     }
                 }
 
-                prg_width_node = parseInt(prg_width_node) * slideFactor - bu_width - mrgin_val;
+                prg_width_node = (usableWidthPx !== undefined) ? usableWidthPx - bu_width - mrgin_val : undefined;
                 if (isBullate) {
                     //get prg_width_node if there is a bulltes
                     //console.log("total_text_len: ", total_text_len, "prg_width_node:", prg_width_node)
@@ -9243,6 +9268,9 @@
                         pPrNodeLaout = getTextByPathList(warpObj["slideLayoutTables"]["idxTable"][idx], ["p:txBody", "a:p", (lvl - 1), "a:pPr"]);
                     }
                 }
+                // A slide-master placeholder can carry font, color, spacing,
+                // bullet and alignment properties that override txStyles.
+                pPrNodeMaster = getTextByPathList(warpObj["slideMasterTables"]["idxTable"][idx], ["p:txBody", "a:lstStyle", "a:lvl" + lvl + "pPr"]);
             }
             if (type !== undefined) {
                 //slidelayout
@@ -9250,17 +9278,21 @@
                 if (pPrNodeLaout === undefined) {
                     pPrNodeLaout = getTextByPathList(warpObj, ["slideLayoutTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlStr]);
                 }
-                //masterlayout
-                if (type == "title" || type == "ctrTitle") {
-                    pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:titleStyle", lvlStr]);
-                } else if (type == "body" || type == "obj" || type == "subTitle") {
-                    pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:bodyStyle", lvlStr]);
-                } else if (type == "shape" || type == "diagram") {
-                    pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:otherStyle", lvlStr]);
-                } else if (type == "textBox") {
-                    pPrNodeMaster = getTextByPathList(warpObj, ["defaultTextStyle", lvlStr]);
-                } else {
+                if (pPrNodeMaster === undefined) {
                     pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlStr]);
+                }
+                // Fall back to the master's generic text styles only after
+                // the matching master placeholder has been exhausted.
+                if (pPrNodeMaster === undefined) {
+                    if (type == "title" || type == "ctrTitle") {
+                        pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:titleStyle", lvlStr]);
+                    } else if (type == "body" || type == "obj" || type == "subTitle") {
+                        pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:bodyStyle", lvlStr]);
+                    } else if (type == "shape" || type == "diagram") {
+                        pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:otherStyle", lvlStr]);
+                    } else if (type == "textBox") {
+                        pPrNodeMaster = getTextByPathList(warpObj, ["defaultTextStyle", lvlStr]);
+                    }
                 }
             }
             return {
@@ -9277,8 +9309,8 @@
             var text = node["a:t"];
             //var text_count = text.length;
 
-            var openElemnt = "<sapn";//"<bdi";
-            var closeElemnt = "</sapn>";// "</bdi>";
+            var openElemnt = "<span";//"<bdi";
+            var closeElemnt = "</span>";// "</bdi>";
             var styleText = "";
             if (text === undefined && node["type"] !== undefined) {
                 if (is_first_br) {
@@ -9286,7 +9318,7 @@
                     //closeElemnt = "";
                     //return "<br style='font-size: initial'>"
                     is_first_br = false;
-                    return "<sapn class='line-break-br' ></sapn>";
+                    return "<span class='line-break-br' ></span>";
                 } else {
                     // styleText += "display: block;";
                     // openElemnt = "<sapn";
@@ -9434,10 +9466,10 @@
             
             text_style += "font-size:" + font_size + ";" +
                 // marLStr +
-                "font-family:" + getFontType(node, type, warpObj, pFontStyle) + ";" +
-                "font-weight:" + getFontBold(node, type, slideMasterTextStyles) + ";" +
-                "font-style:" + getFontItalic(node, type, slideMasterTextStyles) + ";" +
-                "text-decoration:" + getFontDecoration(node, type, slideMasterTextStyles) + ";" +
+                "font-family:" + getFontType(node, pNode, textBodyNode, lvl, idx, type, warpObj, pFontStyle) + ";" +
+                "font-weight:" + getFontBold(node, pNode, textBodyNode, lvl, idx, type, warpObj) + ";" +
+                "font-style:" + getFontItalic(node, pNode, textBodyNode, lvl, idx, type, warpObj) + ";" +
+                "text-decoration:" + getFontDecoration(node, pNode, textBodyNode, lvl, idx, type, warpObj) + ";" +
                 "text-align:" + getTextHorizontalAlign(node, pNode, type, warpObj) + ";" +
                 "vertical-align:" + getTextVerticalAlign(node, type, slideMasterTextStyles) + ";";
             //rNodeLength
@@ -9535,9 +9567,6 @@
         }
 
         function getPregraphMargn(pNode, idx, type, isBullate, warpObj){
-            if (!isBullate){
-                return ["",0];
-            }
             var marLStr = "", marRStr = "" , maginVal = 0;
             var pPrNode = pNode["a:pPr"];
             var layoutMasterNode = getLayoutAndMasterNode(pNode, idx, type, warpObj);
@@ -9593,6 +9622,28 @@
             var marginLeft = 0;
             if (marLNode !== undefined) {
                 marginLeft = parseInt(marLNode) * slideFactor;
+            }
+            if (!isBullate) {
+                var paragraphIndentStyle = "";
+                var paragraphWidthReduction = 0;
+                if (marginLeft) {
+                    paragraphIndentStyle += (isRTL ? "padding-right:" : "padding-left:") + marginLeft + "px;";
+                    paragraphWidthReduction += Math.abs(marginLeft);
+                }
+                if (indent) {
+                    paragraphIndentStyle += "text-indent:" + indent + "px;";
+                }
+                var paragraphMarRNode = getTextByPathList(pPrNode, ["attrs", "marR"]);
+                if (paragraphMarRNode === undefined) paragraphMarRNode = getTextByPathList(pPrNodeLaout, ["attrs", "marR"]);
+                if (paragraphMarRNode === undefined) paragraphMarRNode = getTextByPathList(pPrNodeMaster, ["attrs", "marR"]);
+                if (paragraphMarRNode !== undefined) {
+                    var paragraphMarginRight = parseInt(paragraphMarRNode) * slideFactor;
+                    if (paragraphMarginRight) {
+                        paragraphIndentStyle += (isRTL ? "padding-left:" : "padding-right:") + paragraphMarginRight + "px;";
+                        paragraphWidthReduction += Math.abs(paragraphMarginRight);
+                    }
+                }
+                return [paragraphIndentStyle, paragraphWidthReduction];
             }
             if ((indentNode !== undefined || marLNode !== undefined)) {
                 //var lvlIndent = defTabSz * lvl;
@@ -10456,7 +10507,57 @@
 
         }
         function getVerticalMargins(pNode, textBodyNode, type, idx, warpObj) {
-            //margin-top ; 
+            // Resolve paragraph spacing through the OOXML cascade. The old
+            // implementation converted line spacing into one-off padding on
+            // the paragraph, so wrapped lines always remained single-spaced.
+            var resolvedLvl = 1;
+            var resolvedLvlNode = getTextByPathList(pNode, ["a:pPr", "attrs", "lvl"]);
+            if (resolvedLvlNode !== undefined) resolvedLvl = parseInt(resolvedLvlNode) + 1;
+            var resolvedLvlKey = "a:lvl" + resolvedLvl + "pPr";
+            var resolvedLayoutMaster = getLayoutAndMasterNode(pNode, idx, type, warpObj);
+            var resolvedCandidates = [
+                getTextByPathList(pNode, ["a:pPr"]),
+                getTextByPathList(textBodyNode, ["a:lstStyle", resolvedLvlKey]),
+                resolvedLayoutMaster.nodeLaout,
+                resolvedLayoutMaster.nodeMaster
+            ];
+            var firstValue = function (path) {
+                for (var rc = 0; rc < resolvedCandidates.length; rc++) {
+                    var resolvedValue = getTextByPathList(resolvedCandidates[rc], path);
+                    if (resolvedValue !== undefined) return resolvedValue;
+                }
+                return undefined;
+            };
+            var firstRun = getTextByPathList(pNode, ["a:r"]);
+            if (firstRun && firstRun.constructor === Array) firstRun = firstRun[0];
+            var resolvedFontPx = parseFloat(getFontSize(firstRun || pNode, textBodyNode, undefined, resolvedLvl, type, warpObj));
+            if (isNaN(resolvedFontPx)) resolvedFontPx = 0;
+            var spacingPx = function (containerName) {
+                var pts = firstValue([containerName, "a:spcPts", "attrs", "val"]);
+                if (pts !== undefined) return parseInt(pts) / 100 * fontSizeFactor;
+                var pct = firstValue([containerName, "a:spcPct", "attrs", "val"]);
+                if (pct !== undefined) return resolvedFontPx * (parseInt(pct) / 100000);
+                return 0;
+            };
+
+            var resolvedStyle = "";
+            var linePct = firstValue(["a:lnSpc", "a:spcPct", "attrs", "val"]);
+            var linePts = firstValue(["a:lnSpc", "a:spcPts", "attrs", "val"]);
+            if (linePct !== undefined) {
+                // DrawingML percentages scale the font's normal line box,
+                // which includes internal leading (roughly 1.2 em), not just
+                // the nominal point size.
+                resolvedStyle += "line-height:" + ((parseInt(linePct) / 100000) * 1.2) + ";";
+            } else if (linePts !== undefined) {
+                resolvedStyle += "line-height:" + (parseInt(linePts) / 100 * fontSizeFactor) + "px;";
+            }
+            var beforePx = spacingPx("a:spcBef");
+            var afterPx = spacingPx("a:spcAft");
+            if (beforePx) resolvedStyle += "margin-top:" + beforePx + "px;";
+            if (afterPx) resolvedStyle += "margin-bottom:" + afterPx + "px;";
+            return resolvedStyle;
+
+            //margin-top ;
             //a:pPr => a:spcBef => a:spcPts (/100) | a:spcPct (/?)
             //margin-bottom
             //a:pPr => a:spcAft => a:spcPts (/100) | a:spcPct (/?)
@@ -10875,28 +10976,72 @@
             //console.log("getContentDir() type:", type, "slideMasterTextStyles:", slideMasterTextStyles,"dirNode:",dirVal)
         }
 
-        function getFontType(node, type, warpObj, pFontStyle) {
-            var typeface = getTextByPathList(node, ["a:rPr", "a:latin", "attrs", "typeface"]);
+        function getRunPropertyCandidates(node, pNode, textBodyNode, lvl, idx, type, warpObj) {
+            var lvlpPr = "a:lvl" + lvl + "pPr";
+            var candidates = [];
+            var add = function (value) {
+                if (value !== undefined && value !== null) candidates.push(value);
+            };
 
-            if (typeface === undefined) {
-                var fontIdx = "";
-                var fontGrup = "";
-                if (pFontStyle !== undefined) {
-                    fontIdx = getTextByPathList(pFontStyle, ["attrs", "idx"]);
-                }
-                var fontSchemeNode = getTextByPathList(warpObj["themeContent"], ["a:theme", "a:themeElements", "a:fontScheme"]);
-                if (fontIdx == "") {
-                    if (type == "title" || type == "subTitle" || type == "ctrTitle") {
-                        fontIdx = "major";
-                    } else {
-                        fontIdx = "minor";
-                    }
-                }
-                fontGrup = "a:" + fontIdx + "Font";
-                typeface = getTextByPathList(fontSchemeNode, [fontGrup, "a:latin", "attrs", "typeface"]);
+            add(getTextByPathList(node, ["a:rPr"]));
+            add(getTextByPathList(node, ["a:fld", "a:rPr"]));
+            add(getTextByPathList(pNode, ["a:pPr", "a:defRPr"]));
+            add(getTextByPathList(textBodyNode, ["a:lstStyle", lvlpPr, "a:defRPr"]));
+
+            if (idx !== undefined) {
+                add(getTextByPathList(warpObj, ["slideLayoutTables", "idxTable", idx, "p:txBody", "a:lstStyle", lvlpPr, "a:defRPr"]));
+            }
+            if (type !== undefined) {
+                add(getTextByPathList(warpObj, ["slideLayoutTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlpPr, "a:defRPr"]));
+            }
+            if (idx !== undefined) {
+                add(getTextByPathList(warpObj, ["slideMasterTables", "idxTable", idx, "p:txBody", "a:lstStyle", lvlpPr, "a:defRPr"]));
+            }
+            if (type !== undefined) {
+                add(getTextByPathList(warpObj, ["slideMasterTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlpPr, "a:defRPr"]));
             }
 
-            return (typeface === undefined) ? "inherit" : typeface;
+            if (type == "title" || type == "ctrTitle") {
+                add(getTextByPathList(warpObj, ["slideMasterTextStyles", "p:titleStyle", lvlpPr, "a:defRPr"]));
+            } else if (type == "body" || type == "obj" || type == "subTitle" || type == "dt" || type == "ftr" || type == "sldNum") {
+                add(getTextByPathList(warpObj, ["slideMasterTextStyles", "p:bodyStyle", lvlpPr, "a:defRPr"]));
+            } else {
+                add(getTextByPathList(warpObj, ["slideMasterTextStyles", "p:otherStyle", lvlpPr, "a:defRPr"]));
+            }
+            add(getTextByPathList(warpObj, ["defaultTextStyle", lvlpPr, "a:defRPr"]));
+            return candidates;
+        }
+
+        function getInheritedRunAttribute(node, pNode, textBodyNode, lvl, idx, type, warpObj, attrName) {
+            var candidates = getRunPropertyCandidates(node, pNode, textBodyNode, lvl, idx, type, warpObj);
+            for (var i = 0; i < candidates.length; i++) {
+                var value = getTextByPathList(candidates[i], ["attrs", attrName]);
+                if (value !== undefined) return value;
+            }
+            return undefined;
+        }
+
+        function resolveThemeTypeface(typeface, type, warpObj, pFontStyle) {
+            var fontIdx = getTextByPathList(pFontStyle, ["attrs", "idx"]);
+            if (typeface && typeface.indexOf("+mj") === 0) fontIdx = "major";
+            if (typeface && typeface.indexOf("+mn") === 0) fontIdx = "minor";
+            if (typeface && typeface.charAt(0) !== "+") return typeface;
+            if (!fontIdx) {
+                fontIdx = (type == "title" || type == "subTitle" || type == "ctrTitle") ? "major" : "minor";
+            }
+            var fontSchemeNode = getTextByPathList(warpObj["themeContent"], ["a:theme", "a:themeElements", "a:fontScheme"]);
+            return getTextByPathList(fontSchemeNode, ["a:" + fontIdx + "Font", "a:latin", "attrs", "typeface"]);
+        }
+
+        function getFontType(node, pNode, textBodyNode, lvl, idx, type, warpObj, pFontStyle) {
+            var candidates = getRunPropertyCandidates(node, pNode, textBodyNode, lvl, idx, type, warpObj);
+            var typeface;
+            for (var i = 0; i < candidates.length; i++) {
+                typeface = getTextByPathList(candidates[i], ["a:latin", "attrs", "typeface"]);
+                if (typeface !== undefined && typeface !== "") break;
+            }
+            typeface = resolveThemeTypeface(typeface, type, warpObj, pFontStyle);
+            return (typeface === undefined || typeface === "") ? "Arial" : typeface;
         }
 
         function getFontColorPr(node, pNode, lstStyle, pFontStyle, lvl, idx, type, warpObj) {
@@ -11260,35 +11405,23 @@
             return isNaN(fontSize) ? ((type == "br") ? "initial" : "inherit") : (fontSize * fontSizeFactor + "px");// + "pt");
         }
 
-        function getFontBold(node, type, slideMasterTextStyles) {
-            return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["b"] === "1") ? "bold" : "inherit";
+        function getFontBold(node, pNode, textBodyNode, lvl, idx, type, warpObj) {
+            var value = getInheritedRunAttribute(node, pNode, textBodyNode, lvl, idx, type, warpObj, "b");
+            return (value === "1" || value === "true" || value === "on") ? "700" : "400";
         }
 
-        function getFontItalic(node, type, slideMasterTextStyles) {
-            return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["i"] === "1") ? "italic" : "inherit";
+        function getFontItalic(node, pNode, textBodyNode, lvl, idx, type, warpObj) {
+            var value = getInheritedRunAttribute(node, pNode, textBodyNode, lvl, idx, type, warpObj, "i");
+            return (value === "1" || value === "true" || value === "on") ? "italic" : "normal";
         }
 
-        function getFontDecoration(node, type, slideMasterTextStyles) {
-            ///////////////////////////////Amir///////////////////////////////
-            if (node["a:rPr"] !== undefined) {
-                var underLine = node["a:rPr"]["attrs"]["u"] !== undefined ? node["a:rPr"]["attrs"]["u"] : "none";
-                var strikethrough = node["a:rPr"]["attrs"]["strike"] !== undefined ? node["a:rPr"]["attrs"]["strike"] : 'noStrike';
-                //console.log("strikethrough: "+strikethrough);
-
-                if (underLine != "none" && strikethrough == "noStrike") {
-                    return "underline";
-                } else if (underLine == "none" && strikethrough != "noStrike") {
-                    return "line-through";
-                } else if (underLine != "none" && strikethrough != "noStrike") {
-                    return "underline line-through";
-                } else {
-                    return "inherit";
-                }
-            } else {
-                return "inherit";
-            }
-            /////////////////////////////////////////////////////////////////
-            //return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["u"] === "sng") ? "underline" : "inherit";
+        function getFontDecoration(node, pNode, textBodyNode, lvl, idx, type, warpObj) {
+            var underLine = getInheritedRunAttribute(node, pNode, textBodyNode, lvl, idx, type, warpObj, "u") || "none";
+            var strikethrough = getInheritedRunAttribute(node, pNode, textBodyNode, lvl, idx, type, warpObj, "strike") || "noStrike";
+            var decorations = [];
+            if (underLine != "none") decorations.push("underline");
+            if (strikethrough != "noStrike") decorations.push("line-through");
+            return decorations.length ? decorations.join(" ") : "none";
         }
         ////////////////////////////////////Amir/////////////////////////////////////
         function getTextHorizontalAlign(node, pNode, type, warpObj) {

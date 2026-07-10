@@ -917,11 +917,15 @@ ${bodyMarkup}
         }
         body {
             width: 794px;
-            padding: 56px 64px;
+            /* Vertical page margins are applied per PDF page at capture time. */
+            padding: 0 64px;
             box-sizing: border-box;
             color: #111111;
             overflow-wrap: break-word;
             word-break: normal;
+            /* Contain child margins so live layout measurements match the
+               SVG capture wrapper (which establishes its own BFC). */
+            display: flow-root;
         }
         img, svg, video, canvas {
             max-width: 100%;
@@ -987,13 +991,13 @@ ${bodyMarkup}
         const isVeryLargeBook = fileSize >= 40 * 1024 * 1024 || chapterCount >= 120;
         const isLargeBook = isVeryLargeBook || fileSize >= 18 * 1024 * 1024 || chapterCount >= 60;
 
+        // Scale/quality trade off output size and memory against sharpness;
+        // big books get progressively cheaper pages so they can't freeze the tab.
         return {
-            renderScale: isVeryLargeBook ? 1.18 : (isLargeBook ? 1.32 : 1.55),
-            jpegQuality: isVeryLargeBook ? 0.68 : (isLargeBook ? 0.7 : 0.72),
-            chapterGapPx: Math.round(18 * (isVeryLargeBook ? 1.18 : (isLargeBook ? 1.32 : 1.55))),
+            pageScale: isVeryLargeBook ? 1.3 : (isLargeBook ? 1.6 : 2),
+            jpegQuality: isVeryLargeBook ? 0.78 : (isLargeBook ? 0.82 : 0.88),
             assetWaitMs: isVeryLargeBook ? 4500 : (isLargeBook ? 6000 : 9000),
-            fontWaitMs: isVeryLargeBook ? 1200 : (isLargeBook ? 1800 : 3000),
-            preferForeignObjectRendering: true
+            fontWaitMs: isVeryLargeBook ? 1200 : (isLargeBook ? 1800 : 3000)
         };
     },
 
@@ -1276,35 +1280,30 @@ ${bodyMarkup}
         await this.ensureEpubProcessingLibs();
         const { jsPDF } = window.jspdf;
 
+        // A4 geometry at 96 CSS px/inch. Horizontal page margins are baked
+        // into the chapter body padding; vertical margins are applied when
+        // each page slice is composited.
+        const geometry = {
+            pageWidthPx: 794,
+            pageHeightPx: 1123,
+            marginYPx: 56
+        };
+
         for (const file of this.uploadedFiles) {
             try {
                 const { zip, manifestByPath, spineItems } = await this.parseEpubPackage(file);
                 const assetCache = new Map();
-                const epubRenderProfile = this.getEpubRenderProfile(file.size || 0, spineItems.length);
+                const profile = this.getEpubRenderProfile(file.size || 0, spineItems.length);
                 const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true, putOnlyUsedFonts: true });
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-                const targetCanvasWidth = Math.round(794 * epubRenderProfile.renderScale);
-                const pageCanvasHeight = Math.max(1, Math.floor(targetCanvasWidth * (pdfHeight / pdfWidth)));
-                const pageCanvas = this.createWhiteCanvas(targetCanvasWidth, pageCanvasHeight);
-                const pageCtx = pageCanvas.getContext('2d');
-                const state = {
-                    isFirstPage: true,
-                    cursorY: 0,
-                    pageCanvas,
-                    pageCtx,
-                    jpegQuality: epubRenderProfile.jpegQuality
-                };
-                const chapterGapPx = epubRenderProfile.chapterGapPx;
                 const renderSession = this.createEpubRenderSession();
+                let emittedPages = 0;
 
                 try {
                     for (let chapterIndex = 0; chapterIndex < spineItems.length; chapterIndex += 1) {
                         const spineItem = spineItems[chapterIndex];
-                        const progressText = document.getElementById('progress-text');
-                        if (progressText) {
-                            progressText.textContent = `Rendering ${file.name} chapter ${chapterIndex + 1} of ${spineItems.length}...`;
-                        }
+                        this.setConversionProgressText(
+                            `Rendering ${file.name} chapter ${chapterIndex + 1} of ${spineItems.length}...`
+                        );
 
                         const chapterEntry = this.getZipEntry(zip, spineItem.path);
                         if (!chapterEntry) continue;
@@ -1317,24 +1316,30 @@ ${bodyMarkup}
                             manifestByPath,
                             assetCache
                         );
-                        const chapterCanvas = await this.renderHtmlStringToCanvas(renderableHtml, {
-                            renderScale: epubRenderProfile.renderScale,
-                            assetWaitMs: epubRenderProfile.assetWaitMs,
-                            fontWaitMs: epubRenderProfile.fontWaitMs,
-                            preferForeignObjectRendering: epubRenderProfile.preferForeignObjectRendering
-                        }, renderSession);
-                        if (!chapterCanvas || chapterCanvas.height <= 1) continue;
 
-                        this.appendCanvasToSequentialPdf(pdf, chapterCanvas, state);
-                        if (chapterIndex < spineItems.length - 1) {
-                            this.advanceSequentialPdfCursor(pdf, state, chapterGapPx);
+                        try {
+                            emittedPages = await this.renderEpubChapterToPdf(pdf, renderSession, renderableHtml, {
+                                ...geometry,
+                                scale: profile.pageScale,
+                                jpegQuality: profile.jpegQuality,
+                                assetWaitMs: profile.assetWaitMs,
+                                fontWaitMs: profile.fontWaitMs,
+                                emittedPages,
+                                progressLabel: `${file.name} chapter ${chapterIndex + 1} of ${spineItems.length}`
+                            });
+                        } catch (chapterError) {
+                            console.warn(`EPUB chapter ${spineItem.path} failed to render:`, chapterError);
                         }
+                        await this.yieldToUiThread();
                     }
                 } finally {
                     this.destroyEpubRenderSession(renderSession);
                 }
 
-                this.flushSequentialPdfPage(pdf, state);
+                if (emittedPages === 0) {
+                    throw new Error('No renderable content was found in this EPUB');
+                }
+
                 const pdfBlob = pdf.output('blob');
                 const outputName = file.name.replace(/\.epub$/i, '.pdf');
                 results.push({
@@ -1357,6 +1362,136 @@ ${bodyMarkup}
         }
 
         return results;
+    },
+
+    /**
+     * Render one EPUB chapter into the PDF as a sequence of A4 pages with
+     * line-safe page breaks. Each chapter starts on a fresh page, matching
+     * how books paginate spine items in print.
+     * Returns the updated emitted-page count.
+     */
+    async renderEpubChapterToPdf(pdf, renderSession, renderableHtml, opts) {
+        const { pageWidthPx, pageHeightPx, marginYPx, scale, jpegQuality } = opts;
+        const pageContentHeight = pageHeightPx - marginYPx * 2;
+        let emittedPages = opts.emittedPages || 0;
+
+        const iframe = renderSession.iframe;
+        iframe.style.width = `${pageWidthPx}px`;
+        await this.loadHtmlIntoRenderSession(renderSession, renderableHtml, 25000);
+        await this.waitForIframeAssets(iframe, { timeoutMs: opts.assetWaitMs, fontTimeoutMs: opts.fontWaitMs });
+
+        const iframeDoc = iframe.contentDocument;
+        const iframeWin = iframe.contentWindow;
+        if (!iframeDoc || !iframeWin || !iframeDoc.body) {
+            throw new Error('Unable to access EPUB render frame');
+        }
+        const body = iframeDoc.body;
+
+        iframe.style.height = `${Math.max(64, Math.ceil(body.scrollHeight || 64))}px`;
+        await new Promise(resolve => iframeWin.requestAnimationFrame(() => iframeWin.requestAnimationFrame(resolve)));
+
+        // Resolve fonts the book asks for but the machine lacks (alias to
+        // embedded faces or pull from Google Fonts), then re-layout.
+        const chapterCss = Array.from(iframeDoc.querySelectorAll('style'))
+            .map((styleEl) => styleEl.textContent || '')
+            .join('\n');
+        let missingFontCss = '';
+        try {
+            const usedFamilies = this.collectUsedFontFamilies(body);
+            missingFontCss = await this.buildMissingFontCss(usedFamilies, chapterCss);
+            if (missingFontCss) {
+                await this.registerFontCssInDocument(missingFontCss, `lux-epub-fonts-${Date.now()}`, iframeDoc);
+                await new Promise(resolve => iframeWin.requestAnimationFrame(() => iframeWin.requestAnimationFrame(resolve)));
+            }
+        } catch (_) { missingFontCss = ''; }
+
+        const intervals = this.computeOccupiedIntervals(body);
+        if (!intervals.length) return emittedPages; // blank chapter: skip
+
+        const measuredHeight = Math.max(1, Math.ceil(body.scrollHeight || 1));
+        const totalContentHeight = Math.min(measuredHeight, Math.ceil(intervals[intervals.length - 1][1]) + 8);
+        const breaks = this.computePageBreakOffsets(intervals, pageContentHeight, totalContentHeight);
+
+        const captureStyleTexts = [chapterCss, missingFontCss];
+        const session = await this.createNodeCaptureSession(body, {
+            width: pageWidthPx,
+            height: totalContentHeight,
+            backgroundColor: '#ffffff',
+            styleTexts: captureStyleTexts
+        });
+
+        // html2canvas fallback (whole chapter rendered once, then sliced at
+        // the same line-safe offsets) in case native SVG capture fails.
+        let fallbackCanvas = null;
+        const getFallbackCanvas = async () => {
+            if (fallbackCanvas) return fallbackCanvas;
+            fallbackCanvas = await window.html2canvas(body, {
+                backgroundColor: '#ffffff',
+                scale,
+                useCORS: true,
+                allowTaint: false,
+                logging: false,
+                width: pageWidthPx,
+                height: totalContentHeight,
+                windowWidth: pageWidthPx,
+                windowHeight: totalContentHeight,
+                scrollX: 0,
+                scrollY: 0
+            });
+            return fallbackCanvas;
+        };
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = Math.round(pageWidthPx * scale);
+        pageCanvas.height = Math.round(pageHeightPx * scale);
+        const pageCtx = pageCanvas.getContext('2d');
+
+        try {
+            let prevBreak = 0;
+            for (const breakY of breaks) {
+                const sliceHeight = breakY - prevBreak;
+                if (sliceHeight <= 0) { prevBreak = breakY; continue; }
+                this.setConversionProgressText(`Rendering ${opts.progressLabel}, page ${emittedPages + 1}...`);
+
+                pageCtx.fillStyle = '#ffffff';
+                pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+                let sliceCanvas = null;
+                try {
+                    sliceCanvas = await this.captureSessionWindow(session, prevBreak, sliceHeight, scale);
+                } catch (nativeError) {
+                    console.warn('Native EPUB capture failed; using html2canvas slice:', nativeError);
+                }
+
+                if (sliceCanvas) {
+                    pageCtx.drawImage(sliceCanvas, 0, Math.round(marginYPx * scale));
+                    sliceCanvas.width = 1; sliceCanvas.height = 1;
+                } else {
+                    const full = await getFallbackCanvas();
+                    pageCtx.drawImage(
+                        full,
+                        0, Math.round(prevBreak * scale), full.width, Math.round(sliceHeight * scale),
+                        0, Math.round(marginYPx * scale), pageCanvas.width, Math.round(sliceHeight * scale)
+                    );
+                }
+
+                if (emittedPages > 0) pdf.addPage();
+                pdf.addImage(
+                    pageCanvas.toDataURL('image/jpeg', jpegQuality),
+                    'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'MEDIUM'
+                );
+                emittedPages += 1;
+                prevBreak = breakY;
+                await this.yieldToUiThread();
+            }
+        } finally {
+            pageCanvas.width = 1; pageCanvas.height = 1;
+            if (fallbackCanvas) { fallbackCanvas.width = 1; fallbackCanvas.height = 1; }
+        }
+
+        return emittedPages;
     },
 
     // Word (DOCX) to PDF Conversion (docx-preview -> html2canvas -> jsPDF with Mammoth fallback)

@@ -43,9 +43,10 @@ Object.assign(PDFConverterPro.prototype, {
     },
 
     async waitForRenderedContentAssets(container, timeoutMs = 30000) {
-        const fontWait = (document.fonts && document.fonts.ready)
+        const containerDoc = (container && container.ownerDocument) || document;
+        const fontWait = (containerDoc.fonts && containerDoc.fonts.ready)
             ? Promise.race([
-                document.fonts.ready.catch(() => {}),
+                containerDoc.fonts.ready.catch(() => {}),
                 new Promise(resolve => setTimeout(resolve, 5000))
             ])
             : Promise.resolve();
@@ -120,34 +121,49 @@ Object.assign(PDFConverterPro.prototype, {
     },
 
     async convertWordToPdfWithDocxPreview(file, arrayBuffer, jsPDF) {
-        const host = document.createElement('div');
-        host.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;max-width:none;padding:0;margin:0;';
-
-        const pageCss = document.createElement('style');
-        pageCss.textContent = `
-            .lux-docx-host .docx-wrapper {
-                background: #ffffff !important;
-                padding: 0 !important;
-            }
-            .lux-docx-host .docx-wrapper > section,
-            .lux-docx-host .docx-wrapper > .docx {
-                margin: 0 auto 16px auto !important;
-                box-shadow: none !important;
-            }
-            .lux-docx-host .docx {
-                box-shadow: none !important;
-            }
-        `;
-        host.className = 'lux-docx-host';
-        host.appendChild(pageCss);
-
-        const styleContainer = document.createElement('div');
-        const bodyContainer = document.createElement('div');
-        host.appendChild(styleContainer);
-        host.appendChild(bodyContainer);
-        document.body.appendChild(host);
+        // Render inside an isolated same-origin iframe: the site's own
+        // stylesheets must not leak into the document layout, both for
+        // fidelity and because page-break positions are measured here.
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:1400px;height:1200px;opacity:0;pointer-events:none;border:0;background:#ffffff;';
+        document.body.appendChild(iframe);
 
         try {
+            const iframeDoc = iframe.contentDocument;
+            iframeDoc.open();
+            iframeDoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#fff;"></body></html>');
+            iframeDoc.close();
+
+            const pageCss = iframeDoc.createElement('style');
+            pageCss.textContent = `
+                .docx-wrapper {
+                    background: #ffffff !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    display: block !important;
+                }
+                .docx-wrapper > section.docx {
+                    margin: 0 0 16px 0 !important;
+                    box-shadow: none !important;
+                }
+            `;
+            iframeDoc.head.appendChild(pageCss);
+
+            const styleContainer = iframeDoc.createElement('div');
+            const bodyContainer = iframeDoc.createElement('div');
+            iframeDoc.body.appendChild(styleContainer);
+            iframeDoc.body.appendChild(bodyContainer);
+
+            return await this.renderDocxPreviewToPdf(file, arrayBuffer, jsPDF, iframe, styleContainer, bodyContainer);
+        } finally {
+            if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        }
+    },
+
+    async renderDocxPreviewToPdf(file, arrayBuffer, jsPDF, iframe, styleContainer, bodyContainer) {
+        const iframeDoc = iframe.contentDocument;
+        const iframeWin = iframe.contentWindow;
+        {
             await window.docx.renderAsync(arrayBuffer, bodyContainer, styleContainer, {
                 className: 'docx',
                 inWrapper: true,
@@ -161,7 +177,7 @@ Object.assign(PDFConverterPro.prototype, {
                 renderFooters: true,
                 renderFootnotes: true,
                 renderEndnotes: true,
-                renderComments: true,
+                renderComments: false,
                 renderAltChunks: true,
                 useBase64URL: true,
                 trimXmlDeclaration: true,
@@ -170,34 +186,168 @@ Object.assign(PDFConverterPro.prototype, {
 
             await this.waitForRenderedContentAssets(bodyContainer, 35000);
 
+            // Resolve fonts the document asks for but the machine doesn't have:
+            // alias to embedded faces (e.g. "Google Sans Text" -> embedded
+            // "Google Sans") or pull from Google Fonts. This prevents the
+            // silent serif fallback that wrecks body text fidelity.
+            const docxStyleCss = Array.from(styleContainer.querySelectorAll('style'))
+                .concat(Array.from(bodyContainer.querySelectorAll('style')))
+                .map((styleEl) => styleEl.textContent || '')
+                .join('\n');
+            const embeddedFontCss = await this.inlineBlobUrlsInCss(
+                this.collectFontFaceCss(styleContainer) + '\n' + this.collectFontFaceCss(bodyContainer)
+            );
+            const usedFamilies = this.collectUsedFontFamilies(bodyContainer);
+            this.collectUsedFontFamilies(styleContainer).forEach((f) => usedFamilies.add(f));
+            let missingFontCss = '';
+            try {
+                missingFontCss = await this.buildMissingFontCss(usedFamilies, embeddedFontCss);
+            } catch (_) { missingFontCss = ''; }
+            if (missingFontCss) {
+                await this.registerFontCssInDocument(missingFontCss, `lux-docx-fonts-${Date.now()}`, iframeDoc);
+                // Re-layout with the substituted fonts before measuring pages.
+                await new Promise(resolve => iframeWin.requestAnimationFrame(() => iframeWin.requestAnimationFrame(resolve)));
+            }
+
             const wrapper = bodyContainer.querySelector('.docx-wrapper') || bodyContainer;
             let pageNodes = Array.from(wrapper.children).filter(el => el && el.nodeType === 1);
             pageNodes = pageNodes.filter(el => !['STYLE', 'SCRIPT', 'LINK'].includes(el.tagName));
             if (!pageNodes.length) pageNodes = [wrapper];
 
-            const firstSize = this.getRenderableNodeSize(pageNodes[0]);
-            const firstOrientation = firstSize.width >= firstSize.height ? 'l' : 'p';
-            const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: firstOrientation, compress: true });
+            const captureStyleTexts = [
+                docxStyleCss,
+                embeddedFontCss,
+                missingFontCss,
+                `.docx-wrapper { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; }
+                 .docx-wrapper > section.docx { margin: 0 !important; box-shadow: none !important; }`
+            ];
 
-            let isFirstPage = true;
+            // Use the document's real page size (Letter, A4, ...) instead of
+            // forcing A4, and keep per-page pixel budgets bounded so large
+            // documents cannot exhaust memory and freeze the tab.
+            const pxToPt = 72 / 96;
+            const jpegQuality = 0.9;
+            const pickScale = (w, h) => {
+                const budget = 14000000; // ~14MP per page canvas
+                const maxScale = Math.sqrt(budget / Math.max(1, w * h));
+                return Math.max(1.25, Math.min(2, maxScale));
+            };
+
+            // Plan PDF pages. docx-preview can only paginate documents that
+            // carry explicit page-break markers; documents without them (e.g.
+            // Google Docs exports) come back as one very tall section that we
+            // must paginate ourselves at line-safe break positions.
+            const sectionPlans = [];
+            let totalPages = 0;
             for (const pageNode of pageNodes) {
                 const size = this.getRenderableNodeSize(pageNode);
-                const orientation = size.width >= size.height ? 'l' : 'p';
-                const canvas = await window.html2canvas(pageNode, {
-                    scale: 3,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#ffffff',
-                    imageTimeout: 30000,
-                    logging: false,
+                const cs = iframeWin.getComputedStyle(pageNode);
+                const nominalHeight = Math.max(parseFloat(cs.minHeight) || 0, 0) || size.height;
+                const padTop = parseFloat(cs.paddingTop) || 0;
+                const padBottom = parseFloat(cs.paddingBottom) || 0;
+
+                if (size.height <= nominalHeight * 1.1) {
+                    sectionPlans.push({ pageNode, size, mode: 'single' });
+                    totalPages += 1;
+                } else {
+                    const pageContentHeight = Math.max(64, nominalHeight - padTop - padBottom);
+                    const intervals = this.computeOccupiedIntervals(pageNode)
+                        .map(([top, bottom]) => [top - padTop, bottom - padTop]);
+                    // Trim trailing whitespace so we don't emit blank pages.
+                    let totalContentHeight = Math.max(1, size.height - padTop - padBottom);
+                    if (intervals.length) {
+                        totalContentHeight = Math.min(totalContentHeight, Math.ceil(intervals[intervals.length - 1][1]) + 8);
+                    }
+                    const breaks = this.computePageBreakOffsets(intervals, pageContentHeight, totalContentHeight);
+                    sectionPlans.push({
+                        pageNode, size, mode: 'paged',
+                        nominalHeight, padTop, padBottom, breaks
+                    });
+                    totalPages += breaks.length;
+                }
+            }
+
+            const firstPlan = sectionPlans[0];
+            const firstPageHeight = firstPlan.mode === 'single' ? firstPlan.size.height : firstPlan.nominalHeight;
+            const pdf = new jsPDF({
+                unit: 'pt',
+                format: [Math.max(1, firstPlan.size.width * pxToPt), Math.max(1, firstPageHeight * pxToPt)],
+                orientation: firstPlan.size.width >= firstPageHeight ? 'l' : 'p',
+                compress: true
+            });
+
+            let emittedPages = 0;
+            const addPdfPage = (widthPt, heightPt) => {
+                if (emittedPages > 0) {
+                    pdf.addPage([widthPt, heightPt], widthPt >= heightPt ? 'l' : 'p');
+                }
+                emittedPages += 1;
+            };
+
+            for (const plan of sectionPlans) {
+                const { pageNode, size } = plan;
+                const scale = pickScale(size.width, plan.mode === 'single' ? size.height : plan.nominalHeight);
+
+                if (plan.mode === 'single') {
+                    this.setConversionProgressText(`Rendering ${file.name} page ${emittedPages + 1} of ${totalPages}...`);
+                    const widthPt = Math.max(1, size.width * pxToPt);
+                    const heightPt = Math.max(1, size.height * pxToPt);
+                    addPdfPage(widthPt, heightPt);
+
+                    const canvas = await this.captureNodeSmart(pageNode, {
+                        width: size.width,
+                        height: size.height,
+                        scale,
+                        backgroundColor: '#ffffff',
+                        styleTexts: captureStyleTexts,
+                        wrapperClassName: 'docx-wrapper'
+                    });
+                    pdf.addImage(canvas.toDataURL('image/jpeg', jpegQuality), 'JPEG', 0, 0, widthPt, heightPt, undefined, 'MEDIUM');
+                    canvas.width = 1; canvas.height = 1;
+                    await this.yieldToUiThread();
+                    continue;
+                }
+
+                const widthPt = Math.max(1, size.width * pxToPt);
+                const heightPt = Math.max(1, plan.nominalHeight * pxToPt);
+                const session = await this.createNodeCaptureSession(pageNode, {
                     width: size.width,
                     height: size.height,
-                    windowWidth: size.width,
-                    windowHeight: size.height,
-                    scrollX: 0,
-                    scrollY: 0
+                    backgroundColor: '#ffffff',
+                    styleTexts: captureStyleTexts,
+                    wrapperClassName: 'docx-wrapper'
                 });
-                isFirstPage = this.appendCanvasToPdf(pdf, canvas, orientation, isFirstPage);
+
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = Math.round(size.width * scale);
+                pageCanvas.height = Math.round(plan.nominalHeight * scale);
+                const pageCtx = pageCanvas.getContext('2d');
+
+                let prevBreak = 0;
+                for (const breakY of plan.breaks) {
+                    this.setConversionProgressText(`Rendering ${file.name} page ${emittedPages + 1} of ${totalPages}...`);
+                    const sliceHeight = breakY - prevBreak;
+                    if (sliceHeight <= 0) { prevBreak = breakY; continue; }
+
+                    const sliceCanvas = await this.captureSessionWindow(
+                        session,
+                        plan.padTop + prevBreak,
+                        sliceHeight,
+                        scale
+                    );
+
+                    pageCtx.fillStyle = '#ffffff';
+                    pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                    pageCtx.drawImage(sliceCanvas, 0, Math.round(plan.padTop * scale));
+                    sliceCanvas.width = 1; sliceCanvas.height = 1;
+
+                    addPdfPage(widthPt, heightPt);
+                    pdf.addImage(pageCanvas.toDataURL('image/jpeg', jpegQuality), 'JPEG', 0, 0, widthPt, heightPt, undefined, 'MEDIUM');
+
+                    prevBreak = breakY;
+                    await this.yieldToUiThread();
+                }
+                pageCanvas.width = 1; pageCanvas.height = 1;
             }
 
             const pdfBytes = pdf.output('arraybuffer');
@@ -208,8 +358,6 @@ Object.assign(PDFConverterPro.prototype, {
                 size: blob.size,
                 url: URL.createObjectURL(blob)
             };
-        } finally {
-            if (host && host.parentNode) host.parentNode.removeChild(host);
         }
     },
 

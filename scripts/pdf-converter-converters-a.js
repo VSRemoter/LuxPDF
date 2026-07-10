@@ -2125,7 +2125,7 @@ Object.assign(PDFConverterPro.prototype, {
             const cb = 'cb=' + Date.now();
             const ok1 = await this.loadFirstAvailableScript([
                 // Prefer local/vendor first
-                '/vendor/pptxjs/pptxjs.js',
+                '/vendor/pptxjs/pptxjs.js?v=1.6',
                 // Reliable GitHub mirrors that set correct content-type
                 'https://rawcdn.githack.com/meshesha/PPTXjs/master/dist/pptxjs.min.js?' + cb,
                 'https://rawcdn.githack.com/meshesha/PPTXjs/master/js/pptxjs.js?' + cb,
@@ -2308,8 +2308,6 @@ Object.assign(PDFConverterPro.prototype, {
         const results = [];
 
         const { jsPDF } = window.jspdf;
-        // Keep render resolution high enough for text while avoiding massive PDFs.
-        const h2cScale = Math.min(2.2, Math.max(1.8, window.devicePixelRatio || 2));
 
         for (const file of this.uploadedFiles) {
             // Guard: PPTXjs supports .pptx; legacy .ppt is not supported reliably
@@ -2462,6 +2460,34 @@ Object.assign(PDFConverterPro.prototype, {
                     throw new Error('No slides found after rendering (PPTX load may have failed)');
                 }
 
+                // Restore word-boundary wrapping (PPTXjs emits &nbsp; for all spaces).
+                slides.forEach((slide) => this.fixNbspTextWrapping(slide));
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+                // Resolve fonts the deck uses but the viewer's machine lacks
+                // (e.g. Google Fonts used by Google Slides exports).
+                let missingFontCss = '';
+                try {
+                    const usedFamilies = new Set();
+                    slides.forEach((slide) => {
+                        this.collectUsedFontFamilies(slide).forEach((f) => usedFamilies.add(f));
+                    });
+                    missingFontCss = await this.buildMissingFontCss(usedFamilies, '');
+                    if (missingFontCss) {
+                        await this.registerFontCssInDocument(missingFontCss, `lux-pptx-fonts-${Date.now()}`);
+                        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                    }
+                } catch (_) { missingFontCss = ''; }
+
+                // Gather every active CSS rule so the native SVG capture is
+                // style-identical to the live PPTXjs rendering (slide layout
+                // styles are injected into <head> as _css_N rules).
+                const documentCssTexts = await this.collectDocumentCssTexts();
+                const captureStyleTexts = documentCssTexts.concat([
+                    missingFontCss,
+                    `.slide { margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }`
+                ]);
+
                 const firstSize = this.getPptSlideSize(slides[0]);
                 // Match native slide dimensions instead of forcing A4, which avoids letterboxing and preserves layout.
                 const pdf = new jsPDF({
@@ -2474,45 +2500,43 @@ Object.assign(PDFConverterPro.prototype, {
 
                 let pageIndex = 0;
                 for (const slide of slides) {
+                    this.setConversionProgressText(`Rendering ${file.name} slide ${pageIndex + 1} of ${slides.length}...`);
                     const size = this.getPptSlideSize(slide);
                     if (pageIndex > 0) {
                         pdf.addPage([size.widthPt, size.heightPt], size.orientation);
                     }
 
-                    // Render slide to canvas preserving its own background (including images/gradients)
-                    const rawCanvas = await window.html2canvas(slide, {
-                        backgroundColor: null, // do not force a solid color; keep actual background
-                        scale: h2cScale,
-                        useCORS: true,
-                        logging: false,
+                    // Keep per-slide pixel budgets bounded (memory safety).
+                    const budget = 12000000;
+                    const scale = Math.max(1.25, Math.min(2.5, Math.sqrt(budget / Math.max(1, size.widthPx * size.heightPx))));
+
+                    const canvas = await this.captureNodeSmart(slide, {
                         width: size.widthPx,
                         height: size.heightPx,
-                        windowWidth: size.widthPx,
-                        windowHeight: size.heightPx,
-                        scrollX: 0,
-                        scrollY: 0,
+                        scale,
+                        backgroundColor: '#ffffff',
+                        styleTexts: captureStyleTexts,
+                        // Repeat and compare native paints because Chromium can
+                        // very occasionally black-fill part of a complex SVG
+                        // foreignObject snapshot.
+                        verifyNative: true
                     });
 
-                    const canvas = this.downscaleCanvasIfNeeded(rawCanvas, 2800);
                     const pageWidth = pdf.internal.pageSize.getWidth();
                     const pageHeight = pdf.internal.pageSize.getHeight();
-                    const hasTransparency = this.canvasHasTransparencySampled(canvas);
-                    const useJpeg = !hasTransparency;
-                    const imgData = useJpeg
-                        ? canvas.toDataURL('image/jpeg', this.getPptJpegQuality(canvas))
-                        : canvas.toDataURL('image/png');
-
                     pdf.addImage(
-                        imgData,
-                        useJpeg ? 'JPEG' : 'PNG',
+                        canvas.toDataURL('image/jpeg', this.getPptJpegQuality(canvas)),
+                        'JPEG',
                         0,
                         0,
                         pageWidth,
                         pageHeight,
                         undefined,
-                        useJpeg ? 'MEDIUM' : 'FAST'
+                        'MEDIUM'
                     );
+                    canvas.width = 1; canvas.height = 1;
                     pageIndex++;
+                    await this.yieldToUiThread();
                 }
 
                 const outBlob = pdf.output('blob');
@@ -2523,9 +2547,11 @@ Object.assign(PDFConverterPro.prototype, {
                     size: outBlob.size,
                     url: URL.createObjectURL(outBlob)
                 });
+                this.showNotification(`Successfully converted ${file.name} to PDF`, 'success');
             } catch (err) {
+                // Keep converting the rest of the batch instead of aborting everything.
                 console.error('PPTX->PDF error:', err);
-                throw err;
+                this.showNotification(`Failed to convert ${file.name}: ${err.message}`, 'error');
             } finally {
                 // Restore any globals we swapped and revoke URLs
                 try { if (typeof savedZip !== 'undefined') window.JSZip = savedZip; } catch (_) {}
