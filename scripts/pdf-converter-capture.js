@@ -277,6 +277,64 @@ Object.assign(PDFConverterPro.prototype, {
         }
     },
 
+    // Chromium can occasionally replace a foreignObject subtree with a solid
+    // black rectangle. Detect that specific failure without rendering every
+    // slide two or three times.
+    canvasHasSuspiciousBlackBlock(canvas) {
+        try {
+            const cols = 32;
+            const rows = 18;
+            const probe = document.createElement('canvas');
+            probe.width = cols;
+            probe.height = rows;
+            const ctx = probe.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(canvas, 0, 0, cols, rows);
+            const pixels = ctx.getImageData(0, 0, cols, rows).data;
+            const black = new Uint8Array(cols * rows);
+            let blackCount = 0;
+            for (let i = 0; i < black.length; i += 1) {
+                const p = i * 4;
+                if (pixels[p] <= 3 && pixels[p + 1] <= 3 && pixels[p + 2] <= 3 && pixels[p + 3] >= 250) {
+                    black[i] = 1;
+                    blackCount += 1;
+                }
+            }
+            const total = cols * rows;
+            if (blackCount < total * 0.06 || blackCount > total * 0.85) return false;
+
+            const seen = new Uint8Array(total);
+            for (let start = 0; start < total; start += 1) {
+                if (!black[start] || seen[start]) continue;
+                const queue = [start];
+                seen[start] = 1;
+                let count = 0;
+                let minX = cols, maxX = 0, minY = rows, maxY = 0;
+                while (queue.length) {
+                    const current = queue.pop();
+                    const x = current % cols;
+                    const y = Math.floor(current / cols);
+                    count += 1;
+                    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                    const neighbours = [current - 1, current + 1, current - cols, current + cols];
+                    for (const next of neighbours) {
+                        if (next < 0 || next >= total || seen[next] || !black[next]) continue;
+                        const nx = next % cols;
+                        const ny = Math.floor(next / cols);
+                        if (Math.abs(nx - x) + Math.abs(ny - y) !== 1) continue;
+                        seen[next] = 1;
+                        queue.push(next);
+                    }
+                }
+                const boxArea = (maxX - minX + 1) * (maxY - minY + 1);
+                if (count >= total * 0.06 && boxArea && count / boxArea >= 0.88) return true;
+            }
+            return false;
+        } catch (_) {
+            return false;
+        }
+    },
+
     /**
      * Capture a DOM node with native browser rendering.
      * options:
@@ -363,7 +421,7 @@ Object.assign(PDFConverterPro.prototype, {
      * occupied by indivisible content: text line boxes, images, table rows...
      * Page breaks placed outside these intervals never slice a line in half.
      */
-    computeOccupiedIntervals(rootNode) {
+    computeOccupiedIntervals(rootNode, options = {}) {
         const doc = rootNode.ownerDocument || document;
         const win = doc.defaultView || window;
         const rootRect = rootNode.getBoundingClientRect();
@@ -383,7 +441,16 @@ Object.assign(PDFConverterPro.prototype, {
                 const rects = range.getClientRects();
                 for (let i = 0; i < rects.length; i += 1) {
                     const r = rects[i];
-                    if (r.width > 0 && r.height > 0) push(r.top, r.bottom);
+                    if (r.width > 0 && r.height > 0) {
+                        // Adjacent CSS line boxes often touch exactly. Keeping
+                        // their full rectangles makes them merge into one tall
+                        // occupied interval, leaving pagination no legal gap
+                        // and forcing a hard cut through glyphs. A sub-pixel
+                        // inset preserves each line as an independent interval
+                        // while still protecting all visible text pixels.
+                        const inset = Math.min(0.75, r.height * 0.08);
+                        push(r.top + inset, r.bottom - inset);
+                    }
                 }
             }
         } catch (_) { /* fall back to element scanning below */ }
@@ -394,13 +461,15 @@ Object.assign(PDFConverterPro.prototype, {
                     const r = el.getBoundingClientRect();
                     if (r.width > 0 && r.height > 0) push(r.top, r.bottom);
                 });
-            // Table rows are atomic, but shrink their intervals slightly so
-            // adjacent rows (collapsed borders touch) don't merge into one
-            // unbreakable block: page breaks stay possible between rows.
-            rootNode.querySelectorAll('tr').forEach((el) => {
-                const r = el.getBoundingClientRect();
-                if (r.width > 0 && r.height > 2) push(r.top + 0.75, r.bottom - 0.75);
-            });
+            if (options.atomicTableRows !== false) {
+                // Table rows are atomic by default. DOCX pagination disables
+                // this because Word permits long rows to continue on the next
+                // page; the text-line intervals still prevent sliced glyphs.
+                rootNode.querySelectorAll('tr').forEach((el) => {
+                    const r = el.getBoundingClientRect();
+                    if (r.width > 0 && r.height > 2) push(r.top + 0.75, r.bottom - 0.75);
+                });
+            }
         } catch (_) { /* non-fatal */ }
 
         intervals.sort((a, b) => a[0] - b[0]);
@@ -466,7 +535,9 @@ Object.assign(PDFConverterPro.prototype, {
             const canvas = await this.captureNodeToCanvasNative(node, options);
             const expectContent = options.expectContent !== false;
             if (!expectContent || !this.canvasLooksUniform(canvas)) {
-                if (options.verifyNative === true) {
+                const shouldVerify = options.verifyNative === true ||
+                    (options.verifyNative === 'auto' && this.canvasHasSuspiciousBlackBlock(canvas));
+                if (shouldVerify) {
                     const second = await this.captureNodeToCanvasNative(node, options);
                     const d01 = this.canvasSampleDistance(canvas, second);
                     if (d01 <= 2) {
@@ -557,7 +628,7 @@ Object.assign(PDFConverterPro.prototype, {
         const addFromValue = (value) => {
             String(value || '').split(',').forEach((part) => {
                 const name = part.trim().replace(/^["']|["']$/g, '');
-                if (name && !/^(serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-serif|ui-sans-serif|ui-monospace|inherit|initial|unset)$/i.test(name)) {
+                if (name && !/^var\(/i.test(name) && !/^(serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-serif|ui-sans-serif|ui-monospace|inherit|initial|unset)$/i.test(name)) {
                     used.add(name);
                 }
             });
@@ -608,7 +679,10 @@ Object.assign(PDFConverterPro.prototype, {
         try {
             const fam = encodeURIComponent(String(family).trim()).replace(/%20/g, '+');
             const cssUrl = `https://fonts.googleapis.com/css2?family=${fam}:ital,wght@0,400;0,700;1,400;1,700&display=swap`;
-            const response = await fetch(cssUrl, { mode: 'cors' });
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timer = controller ? setTimeout(() => controller.abort(), 3500) : null;
+            const response = await fetch(cssUrl, { mode: 'cors', signal: controller ? controller.signal : undefined });
+            if (timer) clearTimeout(timer);
             if (!response.ok) return '';
             let css = await response.text();
 
@@ -665,6 +739,7 @@ Object.assign(PDFConverterPro.prototype, {
     async buildMissingFontCss(usedFamilies, embeddedFontFaceCss) {
         const embedded = this.parseFontFamiliesFromFontFaceCss(embeddedFontFaceCss);
         const cssParts = [];
+        const googleFamilies = [];
 
         for (const family of usedFamilies) {
             if (embedded.has(family) || this.isFontFamilyAvailable(family)) continue;
@@ -690,9 +765,13 @@ Object.assign(PDFConverterPro.prototype, {
                 }
             }
 
-            const googleCss = await this.fetchGoogleFontCss(family);
-            if (googleCss) cssParts.push(googleCss);
+            googleFamilies.push(family);
         }
+
+        // Font lookups are best-effort. Run a bounded set concurrently so an
+        // unavailable font service cannot make a deck appear to hang.
+        const remoteCss = await Promise.all(googleFamilies.slice(0, 12).map((family) => this.fetchGoogleFontCss(family)));
+        remoteCss.forEach((css) => { if (css) cssParts.push(css); });
 
         return cssParts.join('\n');
     },

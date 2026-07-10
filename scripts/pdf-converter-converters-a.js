@@ -2125,7 +2125,7 @@ Object.assign(PDFConverterPro.prototype, {
             const cb = 'cb=' + Date.now();
             const ok1 = await this.loadFirstAvailableScript([
                 // Prefer local/vendor first
-                '/vendor/pptxjs/pptxjs.js?v=1.6',
+                '/vendor/pptxjs/pptxjs.js?v=1.7',
                 // Reliable GitHub mirrors that set correct content-type
                 'https://rawcdn.githack.com/meshesha/PPTXjs/master/dist/pptxjs.min.js?' + cb,
                 'https://rawcdn.githack.com/meshesha/PPTXjs/master/js/pptxjs.js?' + cb,
@@ -2315,6 +2315,11 @@ Object.assign(PDFConverterPro.prototype, {
                 throw new Error('Legacy .ppt files are not supported by the in-browser renderer. Please convert to .pptx and try again.');
             }
 
+            // Create jsPDF before PPTXjs parses deck-controlled XML. Some
+            // third-party decks mutate shared library structures while being
+            // walked, which can otherwise break jsPDF's constructor later.
+            const pdf = new jsPDF({ unit: 'pt', format: 'letter', compress: true, putOnlyUsedFonts: true });
+
             // Offscreen root for PPTX rendering (kept visible for correct measurements)
             const root = document.createElement('div');
             root.id = 'slide-resolte-contaniner'; // matches PPTXjs demo id (typo intentional in lib)
@@ -2377,7 +2382,9 @@ Object.assign(PDFConverterPro.prototype, {
                 } catch (_) {}
 
                 // Use a preprocessed PPTX (adds missing app.xml and content types) if available
+                this.setConversionProgressText(`Reading ${file.name}...`);
                 const patchedBlob = await this.preprocessPptx(file);
+                await this.yieldToUiThread();
                 const patchedFile = patchedBlob
                     ? new File([patchedBlob], file.name, {
                         type: file.type || 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -2426,7 +2433,7 @@ Object.assign(PDFConverterPro.prototype, {
                             (window.jQuery || pptxJQ)(input).trigger('change');
                         }
 
-                        await this.waitForPptxRender(root, 90000);
+                        await this.waitForPptxRender(root, 45000);
                         await this.waitForRenderedContentAssets(root, 30000);
                         await this.ensureAllSlideImagesLoaded(root, 30000);
                         rendered = true;
@@ -2446,7 +2453,7 @@ Object.assign(PDFConverterPro.prototype, {
                             keyBoardShortCut: false,
                             mediaProcess: true,
                         });
-                        await this.waitForPptxRender(root, 90000);
+                        await this.waitForPptxRender(root, 45000);
                         await this.waitForRenderedContentAssets(root, 30000);
                         await this.ensureAllSlideImagesLoaded(root, 30000);
                         rendered = true;
@@ -2489,14 +2496,10 @@ Object.assign(PDFConverterPro.prototype, {
                 ]);
 
                 const firstSize = this.getPptSlideSize(slides[0]);
-                // Match native slide dimensions instead of forcing A4, which avoids letterboxing and preserves layout.
-                const pdf = new jsPDF({
-                    orientation: firstSize.orientation,
-                    unit: 'pt',
-                    format: [firstSize.widthPt, firstSize.heightPt],
-                    compress: true,
-                    putOnlyUsedFonts: true
-                });
+                // Replace the placeholder page with the deck's native slide
+                // dimensions instead of forcing A4/Letter.
+                pdf.deletePage(1);
+                pdf.addPage([firstSize.widthPt, firstSize.heightPt], firstSize.orientation);
 
                 let pageIndex = 0;
                 for (const slide of slides) {
@@ -2516,10 +2519,10 @@ Object.assign(PDFConverterPro.prototype, {
                         scale,
                         backgroundColor: '#ffffff',
                         styleTexts: captureStyleTexts,
-                        // Repeat and compare native paints because Chromium can
-                        // very occasionally black-fill part of a complex SVG
-                        // foreignObject snapshot.
-                        verifyNative: true
+                        // Retry only captures with the characteristic solid-black
+                        // foreignObject corruption. Re-rendering every slide made
+                        // large decks appear to freeze.
+                        verifyNative: 'auto'
                     });
 
                     const pageWidth = pdf.internal.pageSize.getWidth();

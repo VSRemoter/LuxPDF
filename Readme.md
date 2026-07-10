@@ -12,7 +12,7 @@ Website: https://luxpdf.com
 - Open-source codebase (AGPL-3.0)
 - Funded by donations and sponsors
 
-## Implemented Tools (36)
+## Implemented Tools (38)
 
 ### PDF and Document Conversions
 
@@ -21,6 +21,7 @@ Website: https://luxpdf.com
 - TXT to PDF (`txt-to-pdf.html`)
 - HTML to PDF (`html-to-pdf.html`)
 - Markdown to PDF (`markdown-to-pdf.html`)
+- EPUB to PDF (`epub-to-pdf.html`)
 - Markdown Text to PDF (`markdown-text-to-pdf.html`)
 - Word to PDF (`word-to-pdf.html`)
 - RTF to PDF (`rtf-to-pdf.html`)
@@ -51,6 +52,7 @@ Website: https://luxpdf.com
 - Sort Pages (`sort-pages.html`)
 - Rotate PDF (`rotate-pdf.html`)
 - Compress PDF (`compress-pdf.html`)
+- Grayscale / Black & White PDF (`grayscale-pdf.html`)
 - Flatten PDF (`flatten-pdf.html`)
 - Add Watermark (`add-watermark.html`)
 - Compare PDFs (`compare-pdfs.html`)

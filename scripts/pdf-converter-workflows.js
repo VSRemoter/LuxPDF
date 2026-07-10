@@ -381,6 +381,73 @@ Object.assign(PDFConverterPro.prototype, {
                 `;
                 break;
 
+            case 'grayscale-pdf':
+                optionsContainer.innerHTML = `
+                    <div class="option-group">
+                        <label for="monochrome-mode">Output Style</label>
+                        <select id="monochrome-mode">
+                            <option value="grayscale">Grayscale — smooth tones for photos and general PDFs</option>
+                            <option value="black-white">Black & White — pure black and white for scanned documents</option>
+                        </select>
+                    </div>
+                    <div class="option-group">
+                        <label for="monochrome-resolution">Render Quality</label>
+                        <select id="monochrome-resolution">
+                            <option value="150">Standard — 150 DPI, smaller file</option>
+                            <option value="200" selected>High — 200 DPI, recommended</option>
+                            <option value="300">Print — 300 DPI, largest file</option>
+                        </select>
+                    </div>
+                    <div class="option-group" id="grayscale-quality-group">
+                        <label for="grayscale-quality">Image Quality: <span id="grayscale-quality-value">92%</span></label>
+                        <input id="grayscale-quality" type="range" min="70" max="100" value="92" step="1">
+                        <p style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.5rem;">
+                            Higher values preserve fine gradients but create a larger PDF.
+                        </p>
+                    </div>
+                    <div class="option-group" id="black-white-options" style="display: none;">
+                        <label for="black-white-method">Document Processing</label>
+                        <select id="black-white-method">
+                            <option value="adaptive" selected>Adaptive — best for scans and uneven lighting</option>
+                            <option value="fixed">Fixed threshold — consistent across the whole page</option>
+                        </select>
+                        <div id="black-white-threshold-wrap" style="display: none; margin-top: 1rem;">
+                            <label for="black-white-threshold">Threshold: <span id="black-white-threshold-value">180</span></label>
+                            <input id="black-white-threshold" type="range" min="80" max="240" value="180" step="1">
+                        </div>
+                        <p style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.6); margin-top: 0.5rem;">
+                            Black & White produces only pure black and pure white pixels for crisp printing.
+                        </p>
+                    </div>
+                    <div class="option-group">
+                        <p style="font-size: 0.9rem; color: rgba(248, 250, 252, 0.72); margin: 0;">
+                            Pages are rendered locally and rebuilt at their original physical size. This reliably converts all visible colors, but rasterizes selectable text, links, forms, and annotations.
+                        </p>
+                    </div>
+                `;
+                {
+                    const mode = document.getElementById('monochrome-mode');
+                    const method = document.getElementById('black-white-method');
+                    const quality = document.getElementById('grayscale-quality');
+                    const threshold = document.getElementById('black-white-threshold');
+                    const refresh = () => {
+                        const isBlackWhite = mode.value === 'black-white';
+                        document.getElementById('grayscale-quality-group').style.display = isBlackWhite ? 'none' : '';
+                        document.getElementById('black-white-options').style.display = isBlackWhite ? '' : 'none';
+                        document.getElementById('black-white-threshold-wrap').style.display = isBlackWhite && method.value === 'fixed' ? '' : 'none';
+                    };
+                    mode.addEventListener('change', refresh);
+                    method.addEventListener('change', refresh);
+                    quality.addEventListener('input', () => {
+                        document.getElementById('grayscale-quality-value').textContent = `${quality.value}%`;
+                    });
+                    threshold.addEventListener('input', () => {
+                        document.getElementById('black-white-threshold-value').textContent = threshold.value;
+                    });
+                    refresh();
+                }
+                break;
+
             case 'compress-image':
                 optionsContainer.innerHTML = `
                     <div class="option-group">
@@ -1579,6 +1646,9 @@ Object.assign(PDFConverterPro.prototype, {
                     break;
                 case 'compress-pdf':
                     results = await this.compressPdf();
+                    break;
+                case 'grayscale-pdf':
+                    results = await this.convertPdfToMonochrome();
                     break;
                 case 'compress-image':
                     results = await this.compressImage();

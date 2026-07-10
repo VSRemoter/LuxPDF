@@ -493,6 +493,11 @@ Object.assign(PDFConverterPro.prototype, {
                 accept: '.pdf',
                 description: 'Reduce PDF file size'
             },
+            'grayscale-pdf': {
+                title: 'Convert PDF to Grayscale or Black & White',
+                accept: '.pdf',
+                description: 'Create a high-quality grayscale or pure black-and-white PDF entirely in your browser'
+            },
             'compress-image': {
                 title: 'Compress Image',
                 accept: '.jpg,.jpeg,.png',

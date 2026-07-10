@@ -13429,25 +13429,21 @@
                 return undefined;
             }
 
-            Object.prototype.set = function (parts, value) {
-                //var parts = prop.split('.');
-                var obj = this;
-                var lent = parts.length;
-                for (var i = 0; i < lent; i++) {
-                    var p = parts[i];
-                    if (obj[p] === undefined) {
-                        if (i == lent - 1) {
-                            obj[p] = value;
-                        } else {
-                            obj[p] = {};
-                        }
-                    }
-                    obj = obj[p];
+            // Never extend Object.prototype here. The original library added
+            // an enumerable `set` method globally, which poisoned jsPDF and
+            // other code that iterates object keys after particular decks were
+            // parsed. Apply the path directly to the target node instead.
+            var obj = node;
+            var lent = path.length;
+            for (var i = 0; i < lent; i++) {
+                var p = path[i];
+                if (obj[p] === undefined) {
+                    obj[p] = (i == lent - 1) ? value : {};
+                } else if (i == lent - 1) {
+                    obj[p] = value;
                 }
-                return obj;
+                obj = obj[p];
             }
-
-            node.set(path, value)
         }
 
         /**

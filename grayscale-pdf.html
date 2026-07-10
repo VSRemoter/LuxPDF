@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description"
+        content="Convert PDF files to high-quality grayscale or pure black and white for free. Private, open source, and processed entirely in your browser with no uploads.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grayscale or Black & White PDF - Private, Free, Open-Sourced</title>
+    <link rel="stylesheet" href="styles.css?v=1.4">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <script defer data-domain="luxpdf.com"
+        src="https://plausible.io/js/script.file-downloads.hash.outbound-links.js"></script>
+    <script>window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">
+                <a href="/"
+                    style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-crown"></i>
+                    LuxPDF
+                </a>
+            </h1>
+            <nav class="nav">
+                <a href="/#tools" class="nav-link">Tools</a>
+                <a href="/support.html" class="nav-link">Support Us</a>
+                <a href="/#about" class="nav-link">About</a>
+                <a href="/#comparison" class="nav-link">Comparison</a>
+                <a href="/#faq" class="nav-link">FAQ</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="tools-section">
+            <div class="container">
+                <div class="tool-interface">
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <h4>Drag & Drop PDF Files Here</h4>
+                            <p>or click to select PDF files</p>
+                            <input type="file" id="file-input" multiple accept=".pdf">
+                        </div>
+                    </div>
+
+                    <div class="file-list" id="file-list"></div>
+                    <div class="tool-options" id="tool-options"></div>
+
+                    <div class="process-section">
+                        <button class="process-btn" id="process-btn" disabled>
+                            <i class="fas fa-adjust"></i>
+                            Convert PDF
+                        </button>
+                    </div>
+
+                    <div class="progress-container" id="progress-container" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">Preparing your PDF...</div>
+                    </div>
+
+                    <div class="results-section" id="results-section" style="display: none;">
+                        <h4>Download Results</h4>
+                        <div class="results-list" id="results-list"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="container">
+                <div class="content-block">
+                    <h3>What is LuxPDF?</h3>
+                    <p><strong>LuxPDF is an open-source, privacy-focused, and completely free suite of online PDF
+                            tools. Your documents are processed entirely inside your browser and never uploaded to our
+                            servers. There is no registration, no file-data collection, and no usage limit.</strong></p>
+                </div>
+
+                <div class="content-block">
+                    <h3>Why use our Grayscale or Black & White PDF tool?</h3>
+                    <ul>
+                        <li><strong>Two Purpose-Built Modes:</strong> Choose smooth grayscale for photographs and
+                            general documents, or pure black and white for crisp scans and printing.</li>
+                        <li><strong>High-Quality Rendering:</strong> Select 150, 200, or print-quality 300 DPI while
+                            preserving every page's original physical dimensions.</li>
+                        <li><strong>Adaptive Scan Processing:</strong> Our black-and-white mode can compensate for
+                            shadows, page curl, and uneven scanner lighting on each part of the page.</li>
+                        <li><strong>Complete Visual Conversion:</strong> Text, vectors, images, transparency, and other
+                            visible page content are converted consistently.</li>
+                        <li><strong>Private Batch Processing:</strong> Convert multiple PDFs locally on your device
+                            without uploads or accounts.</li>
+                        <li><strong>Printer Friendly:</strong> Remove color from handouts, forms, reports, and scanned
+                            documents before printing or archiving.</li>
+                    </ul>
+                </div>
+
+                <div class="content-block">
+                    <h3>How to use our Grayscale or Black & White PDF tool:</h3>
+                    <ol>
+                        <li><strong>Step 1:</strong> Drag and drop one or more PDF files, or click the upload area to
+                            select them.</li>
+                        <li><strong>Step 2:</strong> Choose <strong>Grayscale</strong> for smooth shades of gray or
+                            <strong>Black & White</strong> for pure black and pure white output.
+                        </li>
+                        <li><strong>Step 3:</strong> Select a render quality. High (200 DPI) is recommended for most
+                            documents; Print (300 DPI) preserves the finest detail.</li>
+                        <li><strong>Step 4:</strong> If using black and white, keep Adaptive processing for scans with
+                            uneven backgrounds or choose a fixed threshold for consistent source pages.</li>
+                        <li><strong>Step 5:</strong> Click <strong>Convert PDF</strong>, then download each finished
+                            document from the results section.</li>
+                    </ol>
+                </div>
+
+                <div class="content-block">
+                    <h3>Frequently Asked Questions (FAQ)</h3>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Are my PDF files uploaded or stored?</span></div>
+                        <div class="faq-answer">
+                            <p>No. Rendering, color conversion, and PDF creation all happen locally in your browser.
+                                LuxPDF never receives or stores your documents.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>What is the difference between grayscale and black and white?</span></div>
+                        <div class="faq-answer">
+                            <p>Grayscale retains many shades from black through gray to white, making it best for
+                                photographs, gradients, and general documents. Black-and-white mode uses only pure
+                                black and pure white pixels, which is ideal for text-heavy scans and monochrome
+                                printing.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Which quality setting should I choose?</span></div>
+                        <div class="faq-answer">
+                            <p>High (200 DPI) offers an excellent balance for most PDFs. Use Standard (150 DPI) for a
+                                smaller output or Print (300 DPI) for fine text, diagrams, and high-quality printing.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Will text and links remain selectable?</span></div>
+                        <div class="faq-answer">
+                            <p>No. To ensure every visible color is converted accurately, this tool renders each page
+                                as a high-resolution image. The layout and page size are preserved, but text, links,
+                                forms, layers, and annotations become part of the page image.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Why does adaptive black and white look better on scans?</span></div>
+                        <div class="faq-answer">
+                            <p>Adaptive processing evaluates each small area independently. It can keep text crisp even
+                                when a scanned page has shadows, yellowed paper, or uneven illumination that would
+                                confuse one fixed threshold.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question"><span>Does the tool reduce PDF file size?</span></div>
+                        <div class="faq-answer">
+                            <p>Sometimes, but it is designed for visual quality and color conversion rather than
+                                compression. Resolution, page count, image quality, and the original PDF content all
+                                affect the final size. Use Compress PDF afterward if a smaller file is your priority.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="related-tools-section">
+            <div class="container">
+                <h3 class="section-title">See Our Related Tools</h3>
+                <div class="related-tools-grid">
+                    <a href="/compress-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon"><i class="fas fa-file-pdf"></i><i
+                                class="fas fa-compress-arrows-alt"></i></div>
+                        <h4>Compress PDF</h4>
+                        <p>Reduce PDF size while preserving quality</p>
+                    </a>
+                    <a href="/pdf-to-png.html" class="related-tool-card">
+                        <div class="related-tool-icon"><i class="fas fa-file-pdf"></i><i class="fas fa-image"></i>
+                        </div>
+                        <h4>PDF to PNG</h4>
+                        <p>Convert PDF pages into PNG images</p>
+                    </a>
+                    <a href="/flatten-pdf.html" class="related-tool-card">
+                        <div class="related-tool-icon"><i class="fas fa-file-pdf"></i><i
+                                class="fas fa-layer-group"></i></div>
+                        <h4>Flatten PDF</h4>
+                        <p>Embed forms and annotations into page content</p>
+                    </a>
+                    <a href="/remove-metadata.html" class="related-tool-card">
+                        <div class="related-tool-icon"><i class="fas fa-file-pdf"></i><i class="fas fa-eraser"></i>
+                        </div>
+                        <h4>Remove Metadata</h4>
+                        <p>Strip hidden document metadata for privacy</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo"><i class="fas fa-crown"></i><span>LuxPDF</span></div>
+                <div class="footer-privacy">
+                    <div class="privacy-badge"><i class="fas fa-shield-alt"></i> 100% Private - Zero File Data
+                        Collection</div>
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+                    <a href="/terms.html" class="footer-link">Terms of Service</a>
+                </div>
+                <div class="footer-social">
+                    <a href="https://github.com/VSRemoter/LuxPDF" class="social-link" target="_blank"
+                        rel="noopener noreferrer" aria-label="GitHub"><i class="fab fa-github"></i></a>
+                    <a href="https://x.com/LuxPDF" class="social-link" target="_blank" rel="noopener noreferrer"
+                        aria-label="X (Twitter)"><i class="fab fa-twitter"></i></a>
+                </div>
+                <div class="copyright">© 2025 LuxPDF. All rights reserved.</div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="script.js?v=2.1"></script>
+    <script>
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            window.pdfConverter = new PDFConverterPro();
+            window.pdfConverter.currentTool = 'grayscale-pdf';
+            window.pdfConverter.setupToolSpecificPage();
+        });
+    </script>
+</body>
+
+</html>

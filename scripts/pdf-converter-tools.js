@@ -35,10 +35,106 @@ Object.assign(PDFConverterPro.prototype, {
         }
     },
 
+    // Render the clean document view exported by Google Docs/Word when pending
+    // suggestions are not printed. docx-preview otherwise treats both tracked
+    // insertions and deletions as ordinary content, producing duplicate text,
+    // much taller tables, and extra pages.
+    async prepareDocxFinalView(arrayBuffer) {
+        const JSZipLib = window.JSZip;
+        if (!JSZipLib || typeof JSZipLib.loadAsync !== 'function') return arrayBuffer;
+
+        try {
+            const zip = await JSZipLib.loadAsync(arrayBuffer);
+            const partNames = Object.keys(zip.files).filter((name) =>
+                /^word\/(document|header\d+|footer\d+|footnotes|endnotes)\.xml$/i.test(name)
+            );
+            const wNs = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+            let changed = false;
+
+            for (const partName of partNames) {
+                const entry = zip.file(partName);
+                if (!entry) continue;
+                const source = await entry.async('string');
+                if (!/<w:(del|ins|moveFrom|moveTo)\b/i.test(source)) continue;
+
+                const xml = new DOMParser().parseFromString(source, 'application/xml');
+                if (xml.querySelector('parsererror')) continue;
+                const byLocalName = (name) => Array.from(xml.getElementsByTagNameNS(wNs, name));
+                const remove = (node) => { if (node.parentNode) node.parentNode.removeChild(node); };
+
+                byLocalName('del').forEach(remove);
+                byLocalName('moveFrom').forEach(remove);
+                byLocalName('ins').forEach(remove);
+                byLocalName('moveTo').forEach(remove);
+                ['delText', 'moveFromRangeStart', 'moveFromRangeEnd', 'moveToRangeStart', 'moveToRangeEnd']
+                    .forEach((name) => byLocalName(name).forEach(remove));
+
+                zip.file(partName, new XMLSerializer().serializeToString(xml));
+                changed = true;
+            }
+
+            return changed ? await zip.generateAsync({ type: 'arraybuffer' }) : arrayBuffer;
+        } catch (error) {
+            console.warn('DOCX final-view preprocessing skipped:', error);
+            return arrayBuffer;
+        }
+    },
+
+    async inspectDocxPageNumbering(arrayBuffer) {
+        const JSZipLib = window.JSZip;
+        if (!JSZipLib || typeof JSZipLib.loadAsync !== 'function') return null;
+        try {
+            const zip = await JSZipLib.loadAsync(arrayBuffer);
+            const documentEntry = zip.file('word/document.xml');
+            if (!documentEntry) return null;
+            const documentXml = await documentEntry.async('string');
+            const footerNames = Object.keys(zip.files).filter((name) => /^word\/footer\d+\.xml$/i.test(name));
+            let hasPageField = false;
+            let needsMaterializing = false;
+            let align = 'right';
+            for (const footerName of footerNames) {
+                const footerXml = await zip.file(footerName).async('string');
+                if (!/<w:instrText[^>]*>\s*PAGE\s*<\/w:instrText>/i.test(footerXml)) continue;
+                hasPageField = true;
+                if (!/<w:fldChar[^>]*w:fldCharType="separate"[^>]*\/>[\s\S]*?<w:t[^>]*>\s*\d+\s*<\/w:t>/i.test(footerXml)) {
+                    needsMaterializing = true;
+                }
+                if (/<w:jc[^>]*w:val="center"/i.test(footerXml)) align = 'center';
+            }
+            if (!hasPageField || !needsMaterializing) return null;
+            const startMatch = documentXml.match(/<w:pgNumType[^>]*w:start="(\d+)"/i);
+            const rightMatch = documentXml.match(/<w:pgMar[^>]*w:right="(\d+)"/i);
+            const bottomMatch = documentXml.match(/<w:pgMar[^>]*w:bottom="(\d+)"/i);
+            return {
+                start: startMatch ? Math.max(1, parseInt(startMatch[1], 10) || 1) : 1,
+                differentFirst: /<w:titlePg(?:\s|\/|>)/i.test(documentXml) && !/<w:titlePg[^>]*w:val="(?:0|false|off)"/i.test(documentXml),
+                align,
+                rightPt: rightMatch ? parseInt(rightMatch[1], 10) / 20 : 72,
+                bottomPt: bottomMatch ? parseInt(bottomMatch[1], 10) / 20 : 72
+            };
+        } catch (_) {
+            return null;
+        }
+    },
+
     getRenderableNodeSize(node) {
         const rect = node.getBoundingClientRect ? node.getBoundingClientRect() : { width: 0, height: 0 };
         const width = Math.max(1, Math.ceil(Math.max(rect.width || 0, node.scrollWidth || 0, node.offsetWidth || 0)));
         const height = Math.max(1, Math.ceil(Math.max(rect.height || 0, node.scrollHeight || 0, node.offsetHeight || 0)));
+        return { width, height };
+    },
+
+    // DOCX pages have a fixed physical width. Content such as an unbroken URL
+    // may increase scrollWidth, but that overflow must wrap inside the Word
+    // page rather than redefine the PDF page as an ultra-wide landscape sheet.
+    getDocxPageNodeSize(node) {
+        const rect = node.getBoundingClientRect ? node.getBoundingClientRect() : { width: 0, height: 0 };
+        const width = Math.max(1, Math.ceil(rect.width || node.offsetWidth || node.clientWidth || 816));
+        const height = Math.max(1, Math.ceil(Math.max(
+            rect.height || 0,
+            node.scrollHeight || 0,
+            node.offsetHeight || 0
+        )));
         return { width, height };
     },
 
@@ -145,6 +241,19 @@ Object.assign(PDFConverterPro.prototype, {
                 .docx-wrapper > section.docx {
                     margin: 0 0 16px 0 !important;
                     box-shadow: none !important;
+                    overflow: hidden !important;
+                }
+                .docx-wrapper table {
+                    max-width: 100% !important;
+                    table-layout: fixed !important;
+                }
+                .docx-wrapper td,
+                .docx-wrapper th,
+                .docx-wrapper td a,
+                .docx-wrapper th a {
+                    min-width: 0 !important;
+                    overflow-wrap: anywhere !important;
+                    word-break: break-word !important;
                 }
             `;
             iframeDoc.head.appendChild(pageCss);
@@ -164,15 +273,21 @@ Object.assign(PDFConverterPro.prototype, {
         const iframeDoc = iframe.contentDocument;
         const iframeWin = iframe.contentWindow;
         {
-            await window.docx.renderAsync(arrayBuffer, bodyContainer, styleContainer, {
+            this.setConversionProgressText(`Preparing ${file.name}...`);
+            const pageNumbering = await this.inspectDocxPageNumbering(arrayBuffer);
+            const finalViewBuffer = await this.prepareDocxFinalView(arrayBuffer);
+            await this.yieldToUiThread();
+            await window.docx.renderAsync(finalViewBuffer, bodyContainer, styleContainer, {
                 className: 'docx',
                 inWrapper: true,
                 ignoreWidth: false,
                 ignoreHeight: false,
                 ignoreFonts: false,
                 breakPages: true,
-                // Critical for Word-authored docs that rely on lastRenderedPageBreak markers.
-                ignoreLastRenderedPageBreak: false,
+                // Reflow from the actual page geometry. lastRenderedPageBreak
+                // markers are editor-specific hints and become wrong as soon
+                // substituted fonts or URL wrapping changes line heights.
+                ignoreLastRenderedPageBreak: true,
                 renderHeaders: true,
                 renderFooters: true,
                 renderFootnotes: true,
@@ -219,7 +334,11 @@ Object.assign(PDFConverterPro.prototype, {
                 embeddedFontCss,
                 missingFontCss,
                 `.docx-wrapper { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; }
-                 .docx-wrapper > section.docx { margin: 0 !important; box-shadow: none !important; }`
+                 .docx-wrapper > section.docx { margin: 0 !important; box-shadow: none !important; overflow: hidden !important; }
+                 .docx-wrapper table { max-width: 100% !important; table-layout: fixed !important; }
+                 .docx-wrapper td, .docx-wrapper th, .docx-wrapper td a, .docx-wrapper th a {
+                     min-width: 0 !important; overflow-wrap: anywhere !important; word-break: break-word !important;
+                 }`
             ];
 
             // Use the document's real page size (Letter, A4, ...) instead of
@@ -240,7 +359,7 @@ Object.assign(PDFConverterPro.prototype, {
             const sectionPlans = [];
             let totalPages = 0;
             for (const pageNode of pageNodes) {
-                const size = this.getRenderableNodeSize(pageNode);
+                const size = this.getDocxPageNodeSize(pageNode);
                 const cs = iframeWin.getComputedStyle(pageNode);
                 const nominalHeight = Math.max(parseFloat(cs.minHeight) || 0, 0) || size.height;
                 const padTop = parseFloat(cs.paddingTop) || 0;
@@ -251,11 +370,12 @@ Object.assign(PDFConverterPro.prototype, {
                     totalPages += 1;
                 } else {
                     const pageContentHeight = Math.max(64, nominalHeight - padTop - padBottom);
-                    const intervals = this.computeOccupiedIntervals(pageNode)
+                    const intervals = this.computeOccupiedIntervals(pageNode, { atomicTableRows: false })
                         .map(([top, bottom]) => [top - padTop, bottom - padTop]);
                     // Trim trailing whitespace so we don't emit blank pages.
                     let totalContentHeight = Math.max(1, size.height - padTop - padBottom);
-                    if (intervals.length) {
+                    const hasRenderedFooter = !!pageNode.querySelector('footer, .docx-footer');
+                    if (intervals.length && !hasRenderedFooter) {
                         totalContentHeight = Math.min(totalContentHeight, Math.ceil(intervals[intervals.length - 1][1]) + 8);
                     }
                     const breaks = this.computePageBreakOffsets(intervals, pageContentHeight, totalContentHeight);
@@ -283,6 +403,16 @@ Object.assign(PDFConverterPro.prototype, {
                 }
                 emittedPages += 1;
             };
+            const addMaterializedPageNumber = (widthPt, heightPt) => {
+                if (!pageNumbering || (pageNumbering.differentFirst && emittedPages === 1)) return;
+                const pageNumber = pageNumbering.start + emittedPages - 1;
+                pdf.setFont('times', 'normal');
+                pdf.setFontSize(12);
+                const x = pageNumbering.align === 'center' ? widthPt / 2 : widthPt - pageNumbering.rightPt;
+                pdf.text(String(pageNumber), x, heightPt - pageNumbering.bottomPt + 4, {
+                    align: pageNumbering.align === 'center' ? 'center' : 'right'
+                });
+            };
 
             for (const plan of sectionPlans) {
                 const { pageNode, size } = plan;
@@ -303,6 +433,7 @@ Object.assign(PDFConverterPro.prototype, {
                         wrapperClassName: 'docx-wrapper'
                     });
                     pdf.addImage(canvas.toDataURL('image/jpeg', jpegQuality), 'JPEG', 0, 0, widthPt, heightPt, undefined, 'MEDIUM');
+                    addMaterializedPageNumber(widthPt, heightPt);
                     canvas.width = 1; canvas.height = 1;
                     await this.yieldToUiThread();
                     continue;
@@ -343,6 +474,7 @@ Object.assign(PDFConverterPro.prototype, {
 
                     addPdfPage(widthPt, heightPt);
                     pdf.addImage(pageCanvas.toDataURL('image/jpeg', jpegQuality), 'JPEG', 0, 0, widthPt, heightPt, undefined, 'MEDIUM');
+                    addMaterializedPageNumber(widthPt, heightPt);
 
                     prevBreak = breakY;
                     await this.yieldToUiThread();
@@ -823,6 +955,189 @@ Object.assign(PDFConverterPro.prototype, {
             throw new Error(`Failed to split ${file.name}: ${error.message}`);
         }
     },
+    // Convert every visible page element to grayscale or pure black and white.
+    // Rendering through PDF.js ensures vector art, text, transparency, patterns,
+    // and embedded images are all converted consistently instead of only changing
+    // a subset of image XObjects.
+    async convertPdfToMonochrome() {
+        if (!window.pdfjsLib || !window.PDFLib) {
+            throw new Error('The PDF processing libraries did not load. Please refresh and try again.');
+        }
+
+        const mode = document.getElementById('monochrome-mode')?.value || 'grayscale';
+        const dpi = Math.max(150, Math.min(300, Number(document.getElementById('monochrome-resolution')?.value) || 200));
+        const jpegQuality = Math.max(0.7, Math.min(1, (Number(document.getElementById('grayscale-quality')?.value) || 92) / 100));
+        const thresholdMethod = document.getElementById('black-white-method')?.value || 'adaptive';
+        const fixedThreshold = Math.max(80, Math.min(240, Number(document.getElementById('black-white-threshold')?.value) || 180));
+        const results = [];
+
+        for (let fileIndex = 0; fileIndex < this.uploadedFiles.length; fileIndex++) {
+            const file = this.uploadedFiles[fileIndex];
+            const sourceBytes = new Uint8Array(await file.arrayBuffer());
+            let sourcePdf;
+            try {
+                sourcePdf = await pdfjsLib.getDocument({ data: sourceBytes }).promise;
+            } catch (error) {
+                if (/password/i.test(String(error?.name || error?.message || ''))) {
+                    throw new Error(`${file.name} is password protected. Remove its password first.`);
+                }
+                throw new Error(`Could not open ${file.name}. The PDF may be damaged or unsupported.`);
+            }
+
+            const outputPdf = await PDFLib.PDFDocument.create();
+            outputPdf.setProducer('LuxPDF');
+            outputPdf.setCreator('LuxPDF Grayscale / Black & White PDF');
+
+            try {
+                for (let pageNumber = 1; pageNumber <= sourcePdf.numPages; pageNumber++) {
+                    const sourcePage = await sourcePdf.getPage(pageNumber);
+                    const pageAt72Dpi = sourcePage.getViewport({ scale: 1 });
+                    const scale = dpi / 72;
+                    let viewport = sourcePage.getViewport({ scale });
+
+                    // Avoid browser canvas limits on unusually large pages while
+                    // retaining the requested DPI wherever possible.
+                    const maxCanvasEdge = 8192;
+                    if (Math.max(viewport.width, viewport.height) > maxCanvasEdge) {
+                        const safeScale = scale * (maxCanvasEdge / Math.max(viewport.width, viewport.height));
+                        viewport = sourcePage.getViewport({ scale: safeScale });
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.ceil(viewport.width));
+                    canvas.height = Math.max(1, Math.ceil(viewport.height));
+                    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+                    context.fillStyle = '#ffffff';
+                    context.fillRect(0, 0, canvas.width, canvas.height);
+                    await sourcePage.render({ canvasContext: context, viewport, background: '#ffffff' }).promise;
+
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    const pixels = imageData.data;
+                    const gray = new Uint8Array(canvas.width * canvas.height);
+                    for (let i = 0, p = 0; i < pixels.length; i += 4, p++) {
+                        // Integer Rec. 709 luminance with rounding.
+                        gray[p] = (54 * pixels[i] + 183 * pixels[i + 1] + 19 * pixels[i + 2] + 128) >> 8;
+                    }
+
+                    if (mode === 'black-white') {
+                        if (thresholdMethod === 'adaptive') {
+                            this.applyAdaptiveBlackWhite(gray, pixels, canvas.width, canvas.height, dpi);
+                        } else {
+                            for (let p = 0, i = 0; p < gray.length; p++, i += 4) {
+                                const value = gray[p] < fixedThreshold ? 0 : 255;
+                                pixels[i] = pixels[i + 1] = pixels[i + 2] = value;
+                            }
+                        }
+                    } else {
+                        for (let p = 0, i = 0; p < gray.length; p++, i += 4) {
+                            pixels[i] = pixels[i + 1] = pixels[i + 2] = gray[p];
+                        }
+                    }
+                    context.putImageData(imageData, 0, 0);
+
+                    const mimeType = mode === 'black-white' ? 'image/png' : 'image/jpeg';
+                    const pageBlob = await new Promise((resolve, reject) => {
+                        canvas.toBlob(
+                            blob => blob ? resolve(blob) : reject(new Error(`Could not encode page ${pageNumber}.`)),
+                            mimeType,
+                            mode === 'black-white' ? undefined : jpegQuality
+                        );
+                    });
+                    const imageBytes = await pageBlob.arrayBuffer();
+                    const embeddedImage = mode === 'black-white'
+                        ? await outputPdf.embedPng(imageBytes)
+                        : await outputPdf.embedJpg(imageBytes);
+                    const outputPage = outputPdf.addPage([pageAt72Dpi.width, pageAt72Dpi.height]);
+                    outputPage.drawImage(embeddedImage, {
+                        x: 0,
+                        y: 0,
+                        width: pageAt72Dpi.width,
+                        height: pageAt72Dpi.height
+                    });
+
+                    sourcePage.cleanup();
+                    canvas.width = 1;
+                    canvas.height = 1;
+                    const completed = fileIndex + (pageNumber / sourcePdf.numPages);
+                    const percent = Math.round((completed / this.uploadedFiles.length) * 100);
+                    const fill = document.getElementById('progress-fill');
+                    const text = document.getElementById('progress-text');
+                    if (fill) fill.style.width = `${Math.min(99, percent)}%`;
+                    if (text) text.textContent = `Processing ${file.name}: page ${pageNumber} of ${sourcePdf.numPages}`;
+
+                    // Yield between pages so progress and browser controls remain responsive.
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+
+                const pdfBytes = await outputPdf.save({ useObjectStreams: true, addDefaultPage: false });
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const baseName = file.name.replace(/\.pdf$/i, '');
+                const suffix = mode === 'black-white' ? 'black-and-white' : 'grayscale';
+                results.push({
+                    name: `${baseName}_${suffix}.pdf`,
+                    type: 'application/pdf',
+                    size: blob.size,
+                    url: URL.createObjectURL(blob),
+                    blob,
+                    details: `${mode === 'black-white' ? 'Pure black & white' : 'Grayscale'} · ${dpi} DPI`
+                });
+            } finally {
+                if (typeof sourcePdf.destroy === 'function') await sourcePdf.destroy();
+            }
+        }
+
+        return results;
+    },
+
+    applyAdaptiveBlackWhite(gray, pixels, width, height, dpi) {
+        // Bradley-style local thresholding with a sliding window. This stays
+        // O(n) while using only one row of extra memory, even for 300 DPI pages.
+        const radius = Math.max(10, Math.round(dpi * 0.08));
+        const bias = 14;
+        const columnSums = new Float64Array(width);
+        const initialBottom = Math.min(height - 1, radius);
+        for (let sourceY = 0; sourceY <= initialBottom; sourceY++) {
+            const rowOffset = sourceY * width;
+            for (let x = 0; x < width; x++) columnSums[x] += gray[rowOffset + x];
+        }
+
+        for (let y = 0; y < height; y++) {
+            if (y > 0) {
+                const addY = y + radius;
+                const removeY = y - radius - 1;
+                if (addY < height) {
+                    const addOffset = addY * width;
+                    for (let x = 0; x < width; x++) columnSums[x] += gray[addOffset + x];
+                }
+                if (removeY >= 0) {
+                    const removeOffset = removeY * width;
+                    for (let x = 0; x < width; x++) columnSums[x] -= gray[removeOffset + x];
+                }
+            }
+
+            const top = Math.max(0, y - radius);
+            const bottom = Math.min(height - 1, y + radius);
+            const rowCount = bottom - top + 1;
+            let windowSum = 0;
+            for (let x = 0; x <= Math.min(width - 1, radius); x++) windowSum += columnSums[x];
+
+            for (let x = 0; x < width; x++) {
+                if (x > 0) {
+                    const addX = x + radius;
+                    const removeX = x - radius - 1;
+                    if (addX < width) windowSum += columnSums[addX];
+                    if (removeX >= 0) windowSum -= columnSums[removeX];
+                }
+                const left = Math.max(0, x - radius);
+                const right = Math.min(width - 1, x + radius);
+                const count = (right - left + 1) * rowCount;
+                const value = gray[y * width + x] < (windowSum / count) - bias ? 0 : 255;
+                const pixelIndex = (y * width + x) * 4;
+                pixels[pixelIndex] = pixels[pixelIndex + 1] = pixels[pixelIndex + 2] = value;
+            }
+        }
+    },
+
     // Compress PDF
 
     async compressPdf() {
