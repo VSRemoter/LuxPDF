@@ -2300,16 +2300,117 @@ Object.assign(PDFConverterPro.prototype, {
         if (megaPixels <= 5.5) return 0.84;
         return 0.8;
     },
-    // Convert PPTX to PDF using PPTXjs + html2canvas + jsPDF
+    async ensurePptxRenderer() {
+        if (window.LuxPptxRenderer && window.LuxEmf) return;
+        if (!window.LuxEmf) {
+            await this.loadFirstAvailableScript(['scripts/emf-renderer.js?v=1.0', '/scripts/emf-renderer.js?v=1.0']);
+        }
+        if (!window.LuxPptxRenderer) {
+            await this.loadFirstAvailableScript(['scripts/pptx-renderer.js?v=1.0', '/scripts/pptx-renderer.js?v=1.0']);
+        }
+        if (!window.LuxPptxRenderer) throw new Error('PPTX renderer failed to load');
+    },
 
+    // Convert PPTX to PDF with the native OOXML renderer (exact slide geometry,
+    // theme colours, fonts), falling back to PPTXjs for decks it cannot open.
     async convertPptxToPdf() {
+        await this.ensureHtmlRenderingLibs();
+        const results = [];
+        for (const file of this.uploadedFiles) {
+            if (/\.ppt$/i.test(file.name) && !/\.pptx$/i.test(file.name)) {
+                throw new Error('Legacy .ppt files are not supported by the in-browser renderer. Please convert to .pptx and try again.');
+            }
+            try {
+                await this.ensurePptxRenderer();
+                results.push(await this.convertPptxFileNative(file));
+                this.showNotification(`Successfully converted ${file.name} to PDF`, 'success');
+            } catch (err) {
+                console.warn('Native PPTX renderer failed; falling back to PPTXjs:', err);
+                try {
+                    results.push(...await this.convertPptxToPdfLegacy([file]));
+                } catch (legacyErr) {
+                    console.error('PPTX->PDF error:', legacyErr);
+                    this.showNotification(`Failed to convert ${file.name}: ${err.message}`, 'error');
+                }
+            }
+        }
+        if (results.length === 0) {
+            throw new Error('Failed to convert any PPTX files to PDF');
+        }
+        return results;
+    },
+
+    async convertPptxFileNative(file) {
+        const { jsPDF } = window.jspdf;
+        this.setConversionProgressText(`Reading ${file.name}...`);
+        const deck = await window.LuxPptxRenderer.open(await file.arrayBuffer());
+        try {
+            await deck.prepareFonts((msg) => this.setConversionProgressText(msg));
+            const W = deck.widthPt, H = deck.heightPt;
+            const orientation = W >= H ? 'l' : 'p';
+            const pdf = new jsPDF({ unit: 'pt', format: [W, H], orientation, compress: true, putOnlyUsedFonts: true });
+            // ~4 px per point (288 dpi) keeps text crisp; cap pixel count for memory.
+            const pxPerPt = Math.max(2, Math.min(4, Math.sqrt(9000000 / (W * H))));
+            const count = deck.visibleSlides.length;
+            for (let i = 0; i < count; i++) {
+                this.setConversionProgressText(`Rendering ${file.name} slide ${i + 1} of ${count}...`);
+                let rendered = await deck.renderSlide(i, pxPerPt);
+                let dataUrl;
+                try {
+                    dataUrl = rendered.canvas.toDataURL('image/jpeg', 0.92);
+                } catch (taintErr) {
+                    // Some browsers taint canvases that drew SVG images; re-render with raster fallbacks.
+                    deck.disableSvg = true;
+                    deck.imageCache.clear();
+                    rendered = await deck.renderSlide(i, pxPerPt);
+                    dataUrl = rendered.canvas.toDataURL('image/jpeg', 0.92);
+                }
+                if (i > 0) pdf.addPage([W, H], orientation);
+                pdf.addImage(dataUrl, 'JPEG', 0, 0, W, H, undefined, 'FAST');
+                this.addInvisiblePptText(pdf, rendered.text);
+                rendered.canvas.width = rendered.canvas.height = 1;
+                await this.yieldToUiThread();
+            }
+            const outBlob = pdf.output('blob');
+            return {
+                name: file.name.replace(/\.(pptx|ppt)$/i, '') + '.pdf',
+                type: 'application/pdf',
+                size: outBlob.size,
+                url: URL.createObjectURL(outBlob)
+            };
+        } finally {
+            deck.dispose();
+        }
+    },
+
+    // Invisible text layer so the PDF stays searchable/selectable.
+    addInvisiblePptText(pdf, runs) {
+        if (!runs || !runs.length) return;
+        try {
+            pdf.setFont('helvetica', 'normal');
+            for (const run of runs) {
+                const text = String(run.text || '').replace(/[^\x20-\x7E\u00A0-\u00FF]/g, '?');
+                if (!text.trim() || !(run.size > 0)) continue;
+                pdf.setFontSize(run.size);
+                const natural = pdf.getTextWidth(text);
+                const charSpace = text.length > 1 ? (run.w - natural) / (text.length - 1) : 0;
+                pdf.text(text, run.x, run.y, { renderingMode: 'invisible', baseline: 'alphabetic', charSpace: Number.isFinite(charSpace) ? charSpace : 0 });
+            }
+        } catch (err) {
+            console.warn('PPTX text layer skipped:', err);
+        }
+    },
+
+    // Legacy renderer: PPTXjs + html2canvas + jsPDF
+
+    async convertPptxToPdfLegacy(files = this.uploadedFiles) {
         await this.ensureHtmlRenderingLibs();
         await this.ensurePptxLibs();
         const results = [];
 
         const { jsPDF } = window.jspdf;
 
-        for (const file of this.uploadedFiles) {
+        for (const file of files) {
             // Guard: PPTXjs supports .pptx; legacy .ppt is not supported reliably
             if (/\.ppt$/i.test(file.name) && !/\.pptx$/i.test(file.name)) {
                 throw new Error('Legacy .ppt files are not supported by the in-browser renderer. Please convert to .pptx and try again.');

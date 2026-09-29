@@ -212,13 +212,13 @@
     </div>
   </footer>
 
-  <!-- Core libs used elsewhere; PPTXjs and html2canvas/jsPDF are loaded dynamically by script.js as needed -->
+  <!-- Core libs; the native PPTX renderer (scripts/pptx-renderer.js + emf-renderer.js) and jsPDF load on demand -->
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script src="https://unpkg.com/pako@2.0.4/dist/pako.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pica/5.1.0/pica.min.js"></script>
 
-  <script src="script.js?v=1.9"></script>
+  <script src="script.js?v=2.0"></script>
   <script>
     if (typeof pdfjsLib !== 'undefined') {
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
